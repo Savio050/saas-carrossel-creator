@@ -79,9 +79,35 @@ export default function DashboardClient({ user, isPro }: Props) {
     }
   };
 
+  // CORREÇÃO 1: Sempre retorna a URL, com foto ou com a string 'null'
   const getSlideImageUrl = (slide: Slide) => {
-    if (!slide.usar_imagem || !slide.termo_pesquisa || slide.termo_pesquisa === 'none') return null;
-    return `/api/og-image?texto=${encodeURIComponent(slide.texto)}&termo=${encodeURIComponent(slide.termo_pesquisa)}&slide=${slide.slide}`;
+    const imgParam = slide.imageUrl ? encodeURIComponent(slide.imageUrl) : 'null';
+    // Observação: se a sua pasta no backend se chama "og-image", mude /api/og para /api/og-image
+    return `/api/og?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}`;
+  };
+
+  // CORREÇÃO 2: Função para baixar todos os slides de uma vez
+  const baixarTodasAsImagens = async () => {
+    if (!carrossel) return;
+    
+    carrossel.carrossel.forEach(async (slide, index) => {
+      const imgUrl = getSlideImageUrl(slide);
+      try {
+        const response = await fetch(imgUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `slide-${index + 1}.png`; // Nome do arquivo
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error(`Erro ao baixar o slide ${index + 1}:`, error);
+      }
+    });
   };
 
   return (
@@ -112,14 +138,14 @@ export default function DashboardClient({ user, isPro }: Props) {
           <div className="mb-8 bg-purple-900/20 border border-purple-700 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
               <h3 className="font-bold text-white mb-1">Desbloqueie o acesso completo</h3>
-              <p className="text-gray-400 text-sm">Assine o plano PRO por R$ 47/mes para gerar carrosséis ilimitados.</p>
+              <p className="text-gray-400 text-sm">Assine o plano PRO para gerar carrosséis ilimitados.</p>
             </div>
             <button
               onClick={handleCheckout}
               disabled={checkoutLoading}
               className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-xl transition-colors whitespace-nowrap"
             >
-              {checkoutLoading ? 'Aguarde...' : 'Assinar PRO - R$ 47/mes'}
+              {checkoutLoading ? 'Aguarde...' : 'Assinar PRO'}
             </button>
           </div>
         )}
@@ -132,7 +158,7 @@ export default function DashboardClient({ user, isPro }: Props) {
               type="text"
               value={tema}
               onChange={(e) => setTema(e.target.value)}
-              placeholder="Ex: Como a Shein conquistou o Brasil sem gastar em publicidade"
+              placeholder="Ex: Como a Shein conquistou o Brasil..."
               className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-colors"
               disabled={!isPro || loading}
             />
@@ -144,9 +170,6 @@ export default function DashboardClient({ user, isPro }: Props) {
               {loading ? 'Gerando...' : 'Gerar'}
             </button>
           </form>
-          {!isPro && (
-            <p className="text-gray-500 text-sm mt-2">Assine o plano PRO para usar esta funcionalidade.</p>
-          )}
         </div>
 
         {error && (
@@ -158,7 +181,7 @@ export default function DashboardClient({ user, isPro }: Props) {
         {loading && (
           <div className="text-center py-20">
             <div className="inline-block w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-400">A IA esta criando seu carrossel...</p>
+            <p className="text-gray-400">A IA está criando seu carrossel...</p>
           </div>
         )}
 
@@ -166,46 +189,58 @@ export default function DashboardClient({ user, isPro }: Props) {
         {carrossel && (
           <div>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-white">{carrossel.tema_principal}</h2>
-              <span className="text-gray-400 text-sm">{carrossel.numero_de_slides} slides</span>
+              <div>
+                <h2 className="text-xl font-bold text-white">{carrossel.tema_principal}</h2>
+                <span className="text-gray-400 text-sm">{carrossel.numero_de_slides} slides</span>
+              </div>
+              
+              {/* BOTÃO BAIXAR TODOS */}
+              <button 
+                onClick={baixarTodasAsImagens}
+                className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+              >
+                Baixar Todos (PNG)
+              </button>
             </div>
+            
             <div className="grid gap-4">
               {carrossel.carrossel.map((slide) => {
                 const imgUrl = getSlideImageUrl(slide);
                 return (
                   <div key={slide.slide} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
                     <div className="flex flex-col md:flex-row">
-                      {imgUrl && (
-                        <div className="md:w-64 md:flex-shrink-0">
-                          <img
-                            src={imgUrl}
-                            alt={`Slide ${slide.slide}`}
-                            className="w-full h-48 md:h-full object-cover"
-                          />
-                        </div>
-                      )}
+                      
+                      {/* Imagem de Preview agora aparece sempre */}
+                      <div className="md:w-64 md:flex-shrink-0 bg-gray-800 flex items-center justify-center">
+                        <img
+                          src={imgUrl}
+                          alt={`Slide ${slide.slide}`}
+                          className="w-full h-48 md:h-full object-cover"
+                        />
+                      </div>
+                      
                       <div className="p-6 flex flex-col justify-between flex-1">
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="bg-purple-600/30 text-purple-300 text-xs font-bold px-2 py-1 rounded-full">
-                            Slide {slide.slide}
-                          </span>
-                          {slide.usar_imagem && (
-                            <span className="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded-full">Com imagem</span>
-                          )}
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="bg-purple-600/30 text-purple-300 text-xs font-bold px-2 py-1 rounded-full">
+                              Slide {slide.slide}
+                            </span>
+                            <span className="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded-full">
+                              {slide.usar_imagem ? 'Com imagem de fundo' : 'Sem imagem (Respiro)'}
+                            </span>
+                          </div>
+                          <p className="text-gray-200 text-sm leading-relaxed">{slide.texto}</p>
                         </div>
-                        <p className="text-gray-200 text-sm leading-relaxed">{slide.texto}</p>
+                        
                         <div className="mt-4 flex gap-2">
                           <a
-                            href={imgUrl || '#'}
+                            href={imgUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${
-                              imgUrl
-                                ? 'bg-purple-600 hover:bg-purple-500 text-white'
-                                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                            }`}
+                            download={`slide-${slide.slide}.png`}
+                            className="text-xs px-3 py-1.5 rounded-lg transition-colors bg-purple-600 hover:bg-purple-500 text-white"
                           >
-                            {imgUrl ? 'Baixar PNG' : 'Sem imagem'}
+                            Baixar Este Slide
                           </a>
                         </div>
                       </div>
