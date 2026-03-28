@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     const systemPrompt = `Voce e um copywriter de elite especialista em carrosseis virais de Instagram sobre business, marketing e mercado imobiliario. Escolha um case de negocio NOVO e ALEATORIO baseado no tema fornecido. Escreva entre 8 e 15 slides. Slide 1 deve ter gancho chocante com numeros reais. Desenvolvimento mostra bastidores do modelo de negocios. Ultimo slide entrega uma licao brutal ou pergunta provocativa. Texto incisivo, max 3 paragrafos curtos por slide. SEM negrito, SEM asterisco. Retorne APENAS JSON valido, sem markdown: { "tema_principal": string, "numero_de_slides": number, "carrossel": [ { "slide": number, "texto": string, "usar_imagem": boolean, "termo_pesquisa": string } ] }. Para usar_imagem true, termo_pesquisa em ingles com -stock -watermark -getty -shutterstock. 30% dos slides sem imagem.`;
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
