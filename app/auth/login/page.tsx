@@ -42,12 +42,12 @@ function LoginForm() {
           return;
         }
 
-        // Passando a URL de redirecionamento nativamente pelo Supabase
+        // Passando a URL de redirecionamento oficial da Vercel pelo Supabase
         const { error: signUpError } = await supabase.auth.signUp({ 
           email, 
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/login?verified=true`,
+            emailRedirectTo: 'https://saas-carrossel-creator.vercel.app/auth/login?verified=true',
           }
         });
         
