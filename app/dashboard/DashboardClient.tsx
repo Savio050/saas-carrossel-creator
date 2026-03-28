@@ -9,7 +9,7 @@ interface Slide {
   texto: string;
   usar_imagem: boolean;
   termo_pesquisa: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
 }
 
 interface Carrossel {
@@ -24,13 +24,16 @@ interface Props {
 }
 
 export default function DashboardClient({ user, isPro }: Props) {
-  // Estados do Carrossel
+  // Estados Gerais
   const [tema, setTema] = useState('');
   const [loading, setLoading] = useState(false);
   const [carrossel, setCarrossel] = useState<Carrossel | null>(null);
   const [error, setError] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   
+  // Estado do Estúdio de Edição
+  const [slideAtual, setSlideAtual] = useState(0);
+
   // Estados do Perfil do Usuário
   const [nome, setNome] = useState('');
   const [arroba, setArroba] = useState('');
@@ -39,14 +42,13 @@ export default function DashboardClient({ user, isPro }: Props) {
   const router = useRouter();
   const supabase = createClient();
 
-  // Carrega os dados do perfil salvos no navegador quando a página abre
+  // Carrega Perfil
   useEffect(() => {
     setNome(localStorage.getItem('perfil_nome') || '');
     setArroba(localStorage.getItem('perfil_arroba') || '');
     setAvatarUrl(localStorage.getItem('perfil_avatar') || '');
   }, []);
 
-  // Salva os dados do perfil no navegador
   const salvarPerfil = () => {
     localStorage.setItem('perfil_nome', nome);
     localStorage.setItem('perfil_arroba', arroba);
@@ -66,6 +68,7 @@ export default function DashboardClient({ user, isPro }: Props) {
     setLoading(true);
     setError('');
     setCarrossel(null);
+    setSlideAtual(0); // Reseta para o primeiro slide
 
     try {
       const res = await fetch('/api/gerar-carrossel', {
@@ -100,15 +103,42 @@ export default function DashboardClient({ user, isPro }: Props) {
     }
   };
 
-  // Constrói a URL chamando a rota do Satori com os dados do perfil
+  // --- FUNÇÕES DO ESTÚDIO DE EDIÇÃO ---
+
   const getSlideImageUrl = (slide: Slide) => {
     const imgParam = slide.imageUrl ? encodeURIComponent(slide.imageUrl) : 'null';
     const nomeParam = encodeURIComponent(nome || 'Seu Nome');
     const arrobaParam = encodeURIComponent(arroba || '@seu_arroba');
     const avatarParam = encodeURIComponent(avatarUrl || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png');
     
-  
+    // Atualiza em tempo real conforme o texto muda
     return `/api/og-image?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&nome=${nomeParam}&arroba=${arrobaParam}&avatar=${avatarParam}`;
+  };
+
+  const updateSlideAtual = (updates: Partial<Slide>) => {
+    if (!carrossel) return;
+    const novosSlides = [...carrossel.carrossel];
+    novosSlides[slideAtual] = { ...novosSlides[slideAtual], ...updates };
+    setCarrossel({ ...carrossel, carrossel: novosSlides });
+  };
+
+  const handleAdicionarImagem = () => {
+    const url = window.prompt("Cole a URL direta da imagem (terminada em .jpg, .png, etc):");
+    if (url) {
+      updateSlideAtual({ usar_imagem: true, imageUrl: url });
+    }
+  };
+
+  const handleRemoverImagem = () => {
+    updateSlideAtual({ usar_imagem: false, imageUrl: null });
+  };
+
+  const prevSlide = () => {
+    if (slideAtual > 0) setSlideAtual(slideAtual - 1);
+  };
+
+  const nextSlide = () => {
+    if (carrossel && slideAtual < carrossel.carrossel.length - 1) setSlideAtual(slideAtual + 1);
   };
 
   const baixarTodasAsImagens = async () => {
@@ -141,175 +171,139 @@ export default function DashboardClient({ user, isPro }: Props) {
         <div className="flex items-center gap-2">
           <span className="text-xl font-bold text-white">Carrossel</span>
           <span className="text-xl font-bold text-purple-400">Creator</span>
-          {isPro && (
-            <span className="bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-1">PRO</span>
-          )}
+          {isPro && <span className="bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-1">PRO</span>}
         </div>
         <div className="flex items-center gap-4">
           <span className="text-gray-400 text-sm hidden md:block">{user.email}</span>
-          <button
-            onClick={handleLogout}
-            className="text-gray-400 hover:text-white text-sm transition-colors"
-          >
-            Sair
-          </button>
+          <button onClick={handleLogout} className="text-gray-400 hover:text-white text-sm transition-colors">Sair</button>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-10">
-        {/* Paywall */}
+      <main className="max-w-5xl mx-auto px-6 py-10">
+        
+        {/* Paywall e Perfil continuam iguais */}
         {!isPro && (
           <div className="mb-8 bg-purple-900/20 border border-purple-700 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
               <h3 className="font-bold text-white mb-1">Desbloqueie o acesso completo</h3>
               <p className="text-gray-400 text-sm">Assine o plano PRO para gerar carrosséis ilimitados.</p>
             </div>
-            <button
-              onClick={handleCheckout}
-              disabled={checkoutLoading}
-              className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-xl transition-colors whitespace-nowrap"
-            >
+            <button onClick={handleCheckout} disabled={checkoutLoading} className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-xl transition-colors whitespace-nowrap">
               {checkoutLoading ? 'Aguarde...' : 'Assinar PRO'}
             </button>
           </div>
         )}
 
-        {/* Configurações do Perfil */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-8">
           <h2 className="text-xl font-bold text-white mb-4">Personalizar Visual do Tweet</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-gray-400 text-sm mb-1">Nome de Exibição</label>
-              <input 
-                type="text" value={nome} onChange={(e) => setNome(e.target.value)}
-                placeholder="Ex: Sávio Linhares"
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:border-purple-500 outline-none transition-colors"
-              />
+              <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white outline-none" />
             </div>
             <div>
               <label className="block text-gray-400 text-sm mb-1">Nome de Usuário (@)</label>
-              <input 
-                type="text" value={arroba} onChange={(e) => setArroba(e.target.value)}
-                placeholder="Ex: @saviotlinhares"
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:border-purple-500 outline-none transition-colors"
-              />
+              <input type="text" value={arroba} onChange={(e) => setArroba(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white outline-none" />
             </div>
             <div>
               <label className="block text-gray-400 text-sm mb-1">URL da Foto de Perfil</label>
-              <input 
-                type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="Cole o link de uma imagem"
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:border-purple-500 outline-none transition-colors"
-              />
+              <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white outline-none" />
             </div>
           </div>
-          <button 
-            onClick={salvarPerfil}
-            className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-colors text-sm"
-          >
-            Salvar Perfil
-          </button>
+          <button onClick={salvarPerfil} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-colors text-sm">Salvar Perfil</button>
         </div>
 
-        {/* Formulario de Geração */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-8">
           <h2 className="text-xl font-bold text-white mb-4">Gerar novo carrossel</h2>
           <form onSubmit={handleGenerate} className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              value={tema}
-              onChange={(e) => setTema(e.target.value)}
-              placeholder="Ex: Como a Shein conquistou o Brasil..."
-              className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-colors"
-              disabled={!isPro || loading}
-            />
-            <button
-              type="submit"
-              disabled={!isPro || loading || !tema.trim()}
-              className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold px-8 py-3 rounded-xl transition-colors"
-            >
+            <input type="text" value={tema} onChange={(e) => setTema(e.target.value)} placeholder="Ex: Como a Shein conquistou o Brasil..." className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" disabled={!isPro || loading} />
+            <button type="submit" disabled={!isPro || loading || !tema.trim()} className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold px-8 py-3 rounded-xl transition-colors">
               {loading ? 'Gerando...' : 'Gerar Carrossel'}
             </button>
           </form>
         </div>
 
-        {error && (
-          <div className="bg-red-900/30 border border-red-700 text-red-400 rounded-xl p-4 mb-6 text-sm">
-            {error}
-          </div>
-        )}
+        {error && <div className="bg-red-900/30 border border-red-700 text-red-400 rounded-xl p-4 mb-6 text-sm">{error}</div>}
 
         {loading && (
           <div className="text-center py-20 bg-gray-900 rounded-2xl border border-gray-800">
             <div className="inline-block w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-400 font-medium">A IA do T3 Studio está escrevendo seu conteúdo...</p>
+            <p className="text-gray-400 font-medium">Escrevendo roteiro e buscando imagens...</p>
           </div>
         )}
 
-        {/* Resultados: Slides */}
+        {/* ESTÚDIO DE EDIÇÃO (CARROSSEL INTERATIVO) */}
         {carrossel && (
-          <div className="mt-12">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+          <div className="mt-12 bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4 border-b border-gray-800 pb-6">
               <div>
                 <h2 className="text-2xl font-bold text-white mb-1">{carrossel.tema_principal}</h2>
                 <span className="text-gray-400 text-sm bg-gray-800 px-3 py-1 rounded-full">{carrossel.numero_de_slides} slides gerados</span>
               </div>
-              
-              <button 
-                onClick={baixarTodasAsImagens}
-                className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-xl transition-colors shadow-lg shadow-green-900/20"
-              >
+              <button onClick={baixarTodasAsImagens} className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-xl transition-colors shadow-lg shadow-green-900/20">
                 Baixar Todos (PNG)
               </button>
             </div>
             
-            <div className="grid gap-6">
-              {carrossel.carrossel.map((slide) => {
-                const imgUrl = getSlideImageUrl(slide);
-                return (
-                  <div key={slide.slide} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
-                    <div className="flex flex-col md:flex-row">
-                      
-                      {/* Preview da Imagem Final */}
-                      <div className="md:w-72 md:flex-shrink-0 bg-white flex items-center justify-center border-r border-gray-800">
-                        <img
-                          src={imgUrl}
-                          alt={`Preview Slide ${slide.slide}`}
-                          className="w-full h-auto object-contain"
-                        />
-                      </div>
-                      
-                      {/* Informações do Slide */}
-                      <div className="p-6 flex flex-col justify-between flex-1">
-                        <div>
-                          <div className="flex items-center gap-2 mb-4">
-                            <span className="bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-                              Slide {slide.slide}
-                            </span>
-                            <span className="bg-gray-800 border border-gray-700 text-gray-300 text-xs px-3 py-1 rounded-full">
-                              {slide.usar_imagem ? 'Com imagem de fundo' : 'Fundo branco (Respiro)'}
-                            </span>
-                          </div>
-                          <p className="text-gray-300 text-base leading-relaxed whitespace-pre-wrap">{slide.texto}</p>
-                        </div>
-                        
-                        <div className="mt-6 flex items-center gap-3 border-t border-gray-800 pt-4">
-                          <a
-                            href={imgUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            download={`slide-${slide.slide}.png`}
-                            className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                          >
-                            Abrir Imagem
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="flex flex-col lg:flex-row gap-8 items-stretch">
+              
+              {/* Seta Esquerda */}
+              <button onClick={prevSlide} disabled={slideAtual === 0} className="hidden lg:flex items-center justify-center w-12 hover:bg-gray-800 rounded-2xl transition-colors disabled:opacity-20">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+              </button>
+
+              {/* Área do Card Visual */}
+              <div className="flex-shrink-0 w-full lg:w-[400px] flex justify-center bg-white rounded-2xl overflow-hidden border border-gray-700 shadow-inner">
+                <img
+                  src={getSlideImageUrl(carrossel.carrossel[slideAtual])}
+                  alt={`Preview Slide ${slideAtual + 1}`}
+                  className="w-full h-auto object-contain"
+                />
+              </div>
+
+              {/* Controles de Edição */}
+              <div className="flex-1 flex flex-col justify-center">
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="bg-purple-600 text-white text-sm font-bold px-3 py-1 rounded-full">Slide {slideAtual + 1} de {carrossel.numero_de_slides}</span>
+                </div>
+                
+                <label className="block text-gray-400 text-sm mb-2 font-medium">Editar Texto do Tweet:</label>
+                <textarea
+                  value={carrossel.carrossel[slideAtual].texto}
+                  onChange={(e) => updateSlideAtual({ texto: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-4 text-white text-lg h-48 resize-none outline-none focus:border-purple-500 transition-colors mb-6"
+                />
+
+                <div className="flex flex-wrap gap-3">
+                  {!carrossel.carrossel[slideAtual].usar_imagem || !carrossel.carrossel[slideAtual].imageUrl ? (
+                    <button onClick={handleAdicionarImagem} className="bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-bold py-3 px-6 rounded-xl transition-colors">
+                      + Adicionar Imagem
+                    </button>
+                  ) : (
+                    <button onClick={handleRemoverImagem} className="bg-red-900/40 hover:bg-red-900/60 border border-red-800 text-red-200 font-bold py-3 px-6 rounded-xl transition-colors">
+                      Remover Imagem
+                    </button>
+                  )}
+                  
+                  <a href={getSlideImageUrl(carrossel.carrossel[slideAtual])} download={`slide-${slideAtual + 1}.png`} className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-xl transition-colors text-center">
+                    Baixar Apenas Este
+                  </a>
+                </div>
+              </div>
+
+              {/* Seta Direita */}
+              <button onClick={nextSlide} disabled={slideAtual === carrossel.carrossel.length - 1} className="hidden lg:flex items-center justify-center w-12 hover:bg-gray-800 rounded-2xl transition-colors disabled:opacity-20">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </button>
+
             </div>
+
+            {/* Navegação Mobile (Aparece só no celular) */}
+            <div className="flex lg:hidden justify-center gap-4 mt-8">
+              <button onClick={prevSlide} disabled={slideAtual === 0} className="bg-gray-800 p-4 rounded-xl disabled:opacity-30"><svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
+              <button onClick={nextSlide} disabled={slideAtual === carrossel.carrossel.length - 1} className="bg-gray-800 p-4 rounded-xl disabled:opacity-30"><svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg></button>
+            </div>
+
           </div>
         )}
       </main>
