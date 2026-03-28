@@ -24,36 +24,62 @@ interface Props {
 }
 
 export default function DashboardClient({ user, isPro }: Props) {
-  // Estados Gerais
   const [tema, setTema] = useState('');
   const [loading, setLoading] = useState(false);
   const [carrossel, setCarrossel] = useState<Carrossel | null>(null);
   const [error, setError] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   
-  // Estado do Estúdio de Edição
   const [slideAtual, setSlideAtual] = useState(0);
 
   // Estados do Perfil do Usuário
   const [nome, setNome] = useState('');
   const [arroba, setArroba] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [isVerified, setIsVerified] = useState(false); // Novo estado do Verificado
+  const [salvandoPerfil, setSalvandoPerfil] = useState(false);
 
   const router = useRouter();
   const supabase = createClient();
 
-  // Carrega Perfil
+  // BUSCAR NO SUPABASE AO CARREGAR
   useEffect(() => {
-    setNome(localStorage.getItem('perfil_nome') || '');
-    setArroba(localStorage.getItem('perfil_arroba') || '');
-    setAvatarUrl(localStorage.getItem('perfil_avatar') || '');
-  }, []);
+    const carregarPerfil = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('nome, arroba, avatar_url, is_verified')
+        .eq('id', user.id)
+        .single();
+        
+      if (data && !error) {
+        setNome(data.nome || '');
+        setArroba(data.arroba || '');
+        setAvatarUrl(data.avatar_url || '');
+        setIsVerified(data.is_verified || false);
+      }
+    };
+    carregarPerfil();
+  }, [supabase, user.id]);
 
-  const salvarPerfil = () => {
-    localStorage.setItem('perfil_nome', nome);
-    localStorage.setItem('perfil_arroba', arroba);
-    localStorage.setItem('perfil_avatar', avatarUrl);
-    alert('Perfil atualizado com sucesso!');
+  // SALVAR NO SUPABASE
+  const salvarPerfil = async () => {
+    setSalvandoPerfil(true);
+    const { error } = await supabase
+      .from('users')
+      .update({ 
+        nome, 
+        arroba, 
+        avatar_url: avatarUrl, 
+        is_verified: isVerified 
+      })
+      .eq('id', user.id);
+      
+    setSalvandoPerfil(false);
+    if (error) {
+      alert('Erro ao salvar no banco de dados.');
+    } else {
+      alert('Perfil salvo na nuvem com sucesso!');
+    }
   };
 
   const handleLogout = async () => {
@@ -68,7 +94,7 @@ export default function DashboardClient({ user, isPro }: Props) {
     setLoading(true);
     setError('');
     setCarrossel(null);
-    setSlideAtual(0); // Reseta para o primeiro slide
+    setSlideAtual(0);
 
     try {
       const res = await fetch('/api/gerar-carrossel', {
@@ -103,16 +129,15 @@ export default function DashboardClient({ user, isPro }: Props) {
     }
   };
 
-  // --- FUNÇÕES DO ESTÚDIO DE EDIÇÃO ---
-
+  // Envia a flag de verificado para a imagem
   const getSlideImageUrl = (slide: Slide) => {
     const imgParam = slide.imageUrl ? encodeURIComponent(slide.imageUrl) : 'null';
     const nomeParam = encodeURIComponent(nome || 'Seu Nome');
     const arrobaParam = encodeURIComponent(arroba || '@seu_arroba');
     const avatarParam = encodeURIComponent(avatarUrl || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png');
+    const verificadoParam = isVerified ? 'true' : 'false';
     
-    // Atualiza em tempo real conforme o texto muda
-    return `/api/og-image?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&nome=${nomeParam}&arroba=${arrobaParam}&avatar=${avatarParam}`;
+    return `/api/og-image?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&nome=${nomeParam}&arroba=${arrobaParam}&avatar=${avatarParam}&verified=${verificadoParam}`;
   };
 
   const updateSlideAtual = (updates: Partial<Slide>) => {
@@ -143,14 +168,12 @@ export default function DashboardClient({ user, isPro }: Props) {
 
   const baixarTodasAsImagens = async () => {
     if (!carrossel) return;
-    
     carrossel.carrossel.forEach(async (slide, index) => {
       const imgUrl = getSlideImageUrl(slide);
       try {
         const response = await fetch(imgUrl);
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        
         const a = document.createElement('a');
         a.href = url;
         a.download = `slide-${index + 1}.png`;
@@ -166,7 +189,6 @@ export default function DashboardClient({ user, isPro }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-20">
-      {/* Header */}
       <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xl font-bold text-white">Carrossel</span>
@@ -181,7 +203,6 @@ export default function DashboardClient({ user, isPro }: Props) {
 
       <main className="max-w-5xl mx-auto px-6 py-10">
         
-        {/* Paywall e Perfil continuam iguais */}
         {!isPro && (
           <div className="mb-8 bg-purple-900/20 border border-purple-700 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
@@ -194,25 +215,40 @@ export default function DashboardClient({ user, isPro }: Props) {
           </div>
         )}
 
+        {/* --- PAINEL DE PERFIL ATUALIZADO --- */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-8">
           <h2 className="text-xl font-bold text-white mb-4">Personalizar Visual do Tweet</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div className="md:col-span-1">
               <label className="block text-gray-400 text-sm mb-1">Nome de Exibição</label>
               <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white outline-none" />
             </div>
-            <div>
+            <div className="md:col-span-1">
               <label className="block text-gray-400 text-sm mb-1">Nome de Usuário (@)</label>
               <input type="text" value={arroba} onChange={(e) => setArroba(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white outline-none" />
             </div>
-            <div>
-              <label className="block text-gray-400 text-sm mb-1">URL da Foto de Perfil</label>
+            <div className="md:col-span-1">
+              <label className="block text-gray-400 text-sm mb-1">URL do Avatar</label>
               <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white outline-none" />
             </div>
+            <div className="md:col-span-1 flex flex-col justify-end">
+              <label className="flex items-center gap-3 cursor-pointer bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 h-[42px]">
+                <input 
+                  type="checkbox" 
+                  checked={isVerified} 
+                  onChange={(e) => setIsVerified(e.target.checked)} 
+                  className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-600 focus:ring-2"
+                />
+                <span className="text-sm font-medium text-white select-none">Verificado</span>
+              </label>
+            </div>
           </div>
-          <button onClick={salvarPerfil} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-colors text-sm">Salvar Perfil</button>
+          <button onClick={salvarPerfil} disabled={salvandoPerfil} className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white font-bold py-2 px-6 rounded-lg transition-colors text-sm">
+            {salvandoPerfil ? 'Salvando na Nuvem...' : 'Salvar Perfil na Nuvem'}
+          </button>
         </div>
 
+        {/* Formulario de Geração */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-8">
           <h2 className="text-xl font-bold text-white mb-4">Gerar novo carrossel</h2>
           <form onSubmit={handleGenerate} className="flex flex-col sm:flex-row gap-3">
@@ -247,12 +283,10 @@ export default function DashboardClient({ user, isPro }: Props) {
             
             <div className="flex flex-col lg:flex-row gap-8 items-stretch">
               
-              {/* Seta Esquerda */}
               <button onClick={prevSlide} disabled={slideAtual === 0} className="hidden lg:flex items-center justify-center w-12 hover:bg-gray-800 rounded-2xl transition-colors disabled:opacity-20">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
               </button>
 
-              {/* Área do Card Visual */}
               <div className="flex-shrink-0 w-full lg:w-[400px] flex justify-center bg-white rounded-2xl overflow-hidden border border-gray-700 shadow-inner">
                 <img
                   src={getSlideImageUrl(carrossel.carrossel[slideAtual])}
@@ -261,7 +295,6 @@ export default function DashboardClient({ user, isPro }: Props) {
                 />
               </div>
 
-              {/* Controles de Edição */}
               <div className="flex-1 flex flex-col justify-center">
                 <div className="mb-4 flex items-center gap-3">
                   <span className="bg-purple-600 text-white text-sm font-bold px-3 py-1 rounded-full">Slide {slideAtual + 1} de {carrossel.numero_de_slides}</span>
@@ -291,14 +324,12 @@ export default function DashboardClient({ user, isPro }: Props) {
                 </div>
               </div>
 
-              {/* Seta Direita */}
               <button onClick={nextSlide} disabled={slideAtual === carrossel.carrossel.length - 1} className="hidden lg:flex items-center justify-center w-12 hover:bg-gray-800 rounded-2xl transition-colors disabled:opacity-20">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
               </button>
 
             </div>
 
-            {/* Navegação Mobile (Aparece só no celular) */}
             <div className="flex lg:hidden justify-center gap-4 mt-8">
               <button onClick={prevSlide} disabled={slideAtual === 0} className="bg-gray-800 p-4 rounded-xl disabled:opacity-30"><svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
               <button onClick={nextSlide} disabled={slideAtual === carrossel.carrossel.length - 1} className="bg-gray-800 p-4 rounded-xl disabled:opacity-30"><svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg></button>
