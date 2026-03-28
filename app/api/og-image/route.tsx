@@ -40,8 +40,15 @@ export async function GET(req: NextRequest) {
     return new ImageResponse(
       (
         <div style={{
-          display: 'flex', flexDirection: 'column', width: 1080, height: 1350,
-          backgroundColor: '#FFFFFF', padding: '80px', fontFamily: 'sans-serif',
+          display: 'flex', 
+          flexDirection: 'column', 
+          width: 1080, 
+          height: 1350,
+          backgroundColor: '#FFFFFF', 
+          padding: '80px', 
+          fontFamily: 'sans-serif',
+          // A MÁGICA ACONTECE AQUI:
+          justifyContent: hasImage ? 'flex-start' : 'center', 
         }}>
           
           {/* Cabeçalho */}
