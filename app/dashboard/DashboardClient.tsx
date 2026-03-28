@@ -107,8 +107,8 @@ export default function DashboardClient({ user, isPro }: Props) {
     const arrobaParam = encodeURIComponent(arroba || '@seu_arroba');
     const avatarParam = encodeURIComponent(avatarUrl || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png');
     
-    // ATENÇÃO: Se a sua pasta da API for "og-image", mude "/api/og" para "/api/og-image"
-    return `/api/og?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&nome=${nomeParam}&arroba=${arrobaParam}&avatar=${avatarParam}`;
+  
+    return `/api/og-image?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&nome=${nomeParam}&arroba=${arrobaParam}&avatar=${avatarParam}`;
   };
 
   const baixarTodasAsImagens = async () => {
