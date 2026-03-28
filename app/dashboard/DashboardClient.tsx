@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import Image from 'next/image';
 
 interface Slide {
   slide: number;
@@ -25,13 +24,35 @@ interface Props {
 }
 
 export default function DashboardClient({ user, isPro }: Props) {
+  // Estados do Carrossel
   const [tema, setTema] = useState('');
   const [loading, setLoading] = useState(false);
   const [carrossel, setCarrossel] = useState<Carrossel | null>(null);
   const [error, setError] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  
+  // Estados do Perfil do Usuário
+  const [nome, setNome] = useState('');
+  const [arroba, setArroba] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+
   const router = useRouter();
   const supabase = createClient();
+
+  // Carrega os dados do perfil salvos no navegador quando a página abre
+  useEffect(() => {
+    setNome(localStorage.getItem('perfil_nome') || '');
+    setArroba(localStorage.getItem('perfil_arroba') || '');
+    setAvatarUrl(localStorage.getItem('perfil_avatar') || '');
+  }, []);
+
+  // Salva os dados do perfil no navegador
+  const salvarPerfil = () => {
+    localStorage.setItem('perfil_nome', nome);
+    localStorage.setItem('perfil_arroba', arroba);
+    localStorage.setItem('perfil_avatar', avatarUrl);
+    alert('Perfil atualizado com sucesso!');
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -79,14 +100,17 @@ export default function DashboardClient({ user, isPro }: Props) {
     }
   };
 
-  // CORREÇÃO 1: Sempre retorna a URL, com foto ou com a string 'null'
+  // Constrói a URL chamando a rota do Satori com os dados do perfil
   const getSlideImageUrl = (slide: Slide) => {
     const imgParam = slide.imageUrl ? encodeURIComponent(slide.imageUrl) : 'null';
-    // Observação: se a sua pasta no backend se chama "og-image", mude /api/og para /api/og-image
-    return `/api/og?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}`;
+    const nomeParam = encodeURIComponent(nome || 'Seu Nome');
+    const arrobaParam = encodeURIComponent(arroba || '@seu_arroba');
+    const avatarParam = encodeURIComponent(avatarUrl || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png');
+    
+    // ATENÇÃO: Se a sua pasta da API for "og-image", mude "/api/og" para "/api/og-image"
+    return `/api/og?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&nome=${nomeParam}&arroba=${arrobaParam}&avatar=${avatarParam}`;
   };
 
-  // CORREÇÃO 2: Função para baixar todos os slides de uma vez
   const baixarTodasAsImagens = async () => {
     if (!carrossel) return;
     
@@ -99,7 +123,7 @@ export default function DashboardClient({ user, isPro }: Props) {
         
         const a = document.createElement('a');
         a.href = url;
-        a.download = `slide-${index + 1}.png`; // Nome do arquivo
+        a.download = `slide-${index + 1}.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -111,7 +135,7 @@ export default function DashboardClient({ user, isPro }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-gray-950 text-white pb-20">
       {/* Header */}
       <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -150,10 +174,47 @@ export default function DashboardClient({ user, isPro }: Props) {
           </div>
         )}
 
-        {/* Form */}
+        {/* Configurações do Perfil */}
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-8">
+          <h2 className="text-xl font-bold text-white mb-4">Personalizar Visual do Tweet</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label className="block text-gray-400 text-sm mb-1">Nome de Exibição</label>
+              <input 
+                type="text" value={nome} onChange={(e) => setNome(e.target.value)}
+                placeholder="Ex: Sávio Linhares"
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:border-purple-500 outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-400 text-sm mb-1">Nome de Usuário (@)</label>
+              <input 
+                type="text" value={arroba} onChange={(e) => setArroba(e.target.value)}
+                placeholder="Ex: @saviotlinhares"
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:border-purple-500 outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-400 text-sm mb-1">URL da Foto de Perfil</label>
+              <input 
+                type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)}
+                placeholder="Cole o link de uma imagem"
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:border-purple-500 outline-none transition-colors"
+              />
+            </div>
+          </div>
+          <button 
+            onClick={salvarPerfil}
+            className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-colors text-sm"
+          >
+            Salvar Perfil
+          </button>
+        </div>
+
+        {/* Formulario de Geração */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-8">
           <h2 className="text-xl font-bold text-white mb-4">Gerar novo carrossel</h2>
-          <form onSubmit={handleGenerate} className="flex gap-3">
+          <form onSubmit={handleGenerate} className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               value={tema}
@@ -165,9 +226,9 @@ export default function DashboardClient({ user, isPro }: Props) {
             <button
               type="submit"
               disabled={!isPro || loading || !tema.trim()}
-              className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-xl transition-colors"
+              className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold px-8 py-3 rounded-xl transition-colors"
             >
-              {loading ? 'Gerando...' : 'Gerar'}
+              {loading ? 'Gerando...' : 'Gerar Carrossel'}
             </button>
           </form>
         </div>
@@ -179,68 +240,68 @@ export default function DashboardClient({ user, isPro }: Props) {
         )}
 
         {loading && (
-          <div className="text-center py-20">
-            <div className="inline-block w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-400">A IA está criando seu carrossel...</p>
+          <div className="text-center py-20 bg-gray-900 rounded-2xl border border-gray-800">
+            <div className="inline-block w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-400 font-medium">A IA do T3 Studio está escrevendo seu conteúdo...</p>
           </div>
         )}
 
-        {/* Slides */}
+        {/* Resultados: Slides */}
         {carrossel && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
+          <div className="mt-12">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
               <div>
-                <h2 className="text-xl font-bold text-white">{carrossel.tema_principal}</h2>
-                <span className="text-gray-400 text-sm">{carrossel.numero_de_slides} slides</span>
+                <h2 className="text-2xl font-bold text-white mb-1">{carrossel.tema_principal}</h2>
+                <span className="text-gray-400 text-sm bg-gray-800 px-3 py-1 rounded-full">{carrossel.numero_de_slides} slides gerados</span>
               </div>
               
-              {/* BOTÃO BAIXAR TODOS */}
               <button 
                 onClick={baixarTodasAsImagens}
-                className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-xl transition-colors shadow-lg shadow-green-900/20"
               >
                 Baixar Todos (PNG)
               </button>
             </div>
             
-            <div className="grid gap-4">
+            <div className="grid gap-6">
               {carrossel.carrossel.map((slide) => {
                 const imgUrl = getSlideImageUrl(slide);
                 return (
-                  <div key={slide.slide} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+                  <div key={slide.slide} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
                     <div className="flex flex-col md:flex-row">
                       
-                      {/* Imagem de Preview agora aparece sempre */}
-                      <div className="md:w-64 md:flex-shrink-0 bg-gray-800 flex items-center justify-center">
+                      {/* Preview da Imagem Final */}
+                      <div className="md:w-72 md:flex-shrink-0 bg-white flex items-center justify-center border-r border-gray-800">
                         <img
                           src={imgUrl}
-                          alt={`Slide ${slide.slide}`}
-                          className="w-full h-48 md:h-full object-cover"
+                          alt={`Preview Slide ${slide.slide}`}
+                          className="w-full h-auto object-contain"
                         />
                       </div>
                       
+                      {/* Informações do Slide */}
                       <div className="p-6 flex flex-col justify-between flex-1">
                         <div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <span className="bg-purple-600/30 text-purple-300 text-xs font-bold px-2 py-1 rounded-full">
+                          <div className="flex items-center gap-2 mb-4">
+                            <span className="bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">
                               Slide {slide.slide}
                             </span>
-                            <span className="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded-full">
-                              {slide.usar_imagem ? 'Com imagem de fundo' : 'Sem imagem (Respiro)'}
+                            <span className="bg-gray-800 border border-gray-700 text-gray-300 text-xs px-3 py-1 rounded-full">
+                              {slide.usar_imagem ? 'Com imagem de fundo' : 'Fundo branco (Respiro)'}
                             </span>
                           </div>
-                          <p className="text-gray-200 text-sm leading-relaxed">{slide.texto}</p>
+                          <p className="text-gray-300 text-base leading-relaxed whitespace-pre-wrap">{slide.texto}</p>
                         </div>
                         
-                        <div className="mt-4 flex gap-2">
+                        <div className="mt-6 flex items-center gap-3 border-t border-gray-800 pt-4">
                           <a
                             href={imgUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             download={`slide-${slide.slide}.png`}
-                            className="text-xs px-3 py-1.5 rounded-lg transition-colors bg-purple-600 hover:bg-purple-500 text-white"
+                            className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                           >
-                            Baixar Este Slide
+                            Abrir Imagem
                           </a>
                         </div>
                       </div>
