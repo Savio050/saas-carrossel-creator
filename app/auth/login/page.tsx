@@ -37,18 +37,30 @@ function LoginForm() {
     try {
       if (isSignUp) {
         // Trava de Segurança: Verifica se as senhas batem
+        if (isSignUp) {
+        // Trava de Segurança: Verifica se as senhas batem
         if (password !== confirmPassword) {
           setError('As senhas não coincidem. Digite novamente.');
           setLoading(false);
           return;
         }
 
-        const { error: signUpError } = await supabase.auth.signUp({ email, password });
+        // NOVO: Passando a URL de redirecionamento nativamente pelo Supabase
+        const { error: signUpError } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            // O window.location.origin pega automaticamente o http://localhost:3000 ou o seu domínio da Vercel
+            emailRedirectTo: `${window.location.origin}/auth/login?verified=true`,
+          }
+        });
+        
         if (signUpError) throw signUpError;
         
         setSuccess('Enviamos um link de confirmação para o seu e-mail. Verifique sua caixa de entrada (e o spam)!');
         setPassword('');
         setConfirmPassword('');
+        
         
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
