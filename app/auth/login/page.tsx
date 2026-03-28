@@ -5,16 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
-// Separamos o formulário em um componente filho para o Next.js não reclamar do useSearchParams
 function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState(''); // Novo estado para confirmar senha
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(''); // Novo estado para mensagens de sucesso (Banner Verde)
+  const [success, setSuccess] = useState('');
   
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -37,20 +36,17 @@ function LoginForm() {
     try {
       if (isSignUp) {
         // Trava de Segurança: Verifica se as senhas batem
-        if (isSignUp) {
-        // Trava de Segurança: Verifica se as senhas batem
         if (password !== confirmPassword) {
           setError('As senhas não coincidem. Digite novamente.');
           setLoading(false);
           return;
         }
 
-        // NOVO: Passando a URL de redirecionamento nativamente pelo Supabase
+        // Passando a URL de redirecionamento nativamente pelo Supabase
         const { error: signUpError } = await supabase.auth.signUp({ 
           email, 
           password,
           options: {
-            // O window.location.origin pega automaticamente o http://localhost:3000 ou o seu domínio da Vercel
             emailRedirectTo: `${window.location.origin}/auth/login?verified=true`,
           }
         });
@@ -60,7 +56,6 @@ function LoginForm() {
         setSuccess('Enviamos um link de confirmação para o seu e-mail. Verifique sua caixa de entrada (e o spam)!');
         setPassword('');
         setConfirmPassword('');
-        
         
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
