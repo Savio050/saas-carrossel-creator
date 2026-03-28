@@ -1,146 +1,62 @@
-import { ImageResponse } from '@vercel/og';
+import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const texto = searchParams.get('texto') || 'Slide';
-  const imageUrl = searchParams.get('imageUrl') || '';
-  const slide = searchParams.get('slide') || '1';
+  try {
+    const { searchParams } = new URL(req.url);
+    const texto = searchParams.get('texto') || 'Texto não encontrado';
+    const imageUrl = searchParams.get('imageUrl'); 
 
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: '1080px',
-          height: '1080px',
-          display: 'flex',
-          flexDirection: 'column',
-          background: '#0a0a0a',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Background image */}
-        {imageUrl && (
-          <img
-            src={imageUrl}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              opacity: 0.25,
-            }}
-          />
-        )}
-
-        {/* Gradient overlay */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(135deg, rgba(88,28,135,0.6) 0%, rgba(10,10,10,0.9) 100%)',
-            display: 'flex',
-          }}
-        />
-
-        {/* Content */}
-        <div
-          style={{
-            position: 'relative',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            height: '100%',
-            padding: '80px',
-          }}
-        >
-          {/* Slide number */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-            }}
-          >
-            <div
-              style={{
-                background: 'rgba(147,51,234,0.3)',
-                border: '1px solid rgba(147,51,234,0.5)',
-                borderRadius: '100px',
-                padding: '8px 20px',
-                color: '#c084fc',
-                fontSize: '24px',
-                fontWeight: 700,
-                display: 'flex',
-              }}
-            >
-              #{slide}
+    // O Satori usa dimensões de Instagram Portrait (1080x1350)
+    return new ImageResponse(
+      (
+        <div style={{
+          display: 'flex', flexDirection: 'column', width: 1080, height: 1350,
+          backgroundColor: imageUrl ? '#000000' : '#1E293B', // Fundo preto se tiver imagem, azul escuro se não tiver
+          position: 'relative', overflow: 'hidden', alignItems: 'center', justifyContent: 'center'
+        }}>
+          
+          {/* Imagem de Fundo com Opacidade (se existir) */}
+          {imageUrl && imageUrl !== 'null' && (
+            <img 
+              src={imageUrl} 
+              style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', opacity: 0.4 }} 
+            />
+          )}
+          
+          {/* Card do Tweet */}
+          <div style={{
+            display: 'flex', flexDirection: 'column',
+            backgroundColor: 'white', padding: '60px', borderRadius: '32px',
+            width: '880px', zIndex: 10,
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          }}>
+            
+            {/* Cabeçalho do Tweet: Foto, Nome e @ */}
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '40px' }}>
+              <div style={{ width: '100px', height: '100px', borderRadius: '50px', backgroundColor: '#E2E8F0', display: 'flex' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', marginLeft: '30px' }}>
+                <span style={{ fontSize: '42px', fontWeight: 'bold', color: '#0F1419', lineHeight: 1.2 }}>Sávio | T3 Studio</span>
+                <span style={{ fontSize: '32px', color: '#536471' }}>@t3studio</span>
+              </div>
             </div>
-          </div>
 
-          {/* Text */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px',
-            }}
-          >
-            <p
-              style={{
-                color: '#ffffff',
-                fontSize: '52px',
-                fontWeight: 700,
-                lineHeight: 1.3,
-                margin: 0,
-                maxWidth: '900px',
-              }}
-            >
-              {texto.length > 200 ? texto.substring(0, 200) + '...' : texto}
-            </p>
-          </div>
-
-          {/* Footer */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-              }}
-            >
-              <div
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '100%',
-                  background: '#9333ea',
-                  display: 'flex',
-                }}
-              />
-              <span style={{ color: '#9ca3af', fontSize: '24px', display: 'flex' }}>Carrossel Creator</span>
+            {/* Corpo do Texto (Com quebra automática para não cortar) */}
+            <div style={{ 
+              fontSize: '48px', color: '#0F1419', lineHeight: 1.4, 
+              display: 'flex', flexWrap: 'wrap', letterSpacing: '-0.02em'
+            }}>
+              {texto}
             </div>
+            
           </div>
         </div>
-      </div>
-    ),
-    {
-      width: 1080,
-      height: 1080,
-    }
-  );
+      ),
+      { width: 1080, height: 1350 }
+    );
+  } catch (e) {
+    return new Response(`Erro ao gerar imagem`, { status: 500 });
+  }
 }
