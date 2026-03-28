@@ -24,20 +24,23 @@ interface Props {
 }
 
 export default function DashboardClient({ user, isPro }: Props) {
+  // Estados Gerais do Carrossel
   const [tema, setTema] = useState('');
   const [loading, setLoading] = useState(false);
   const [carrossel, setCarrossel] = useState<Carrossel | null>(null);
   const [error, setError] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   
+  // Estado do Estúdio de Edição
   const [slideAtual, setSlideAtual] = useState(0);
 
   // Estados do Perfil do Usuário
   const [nome, setNome] = useState('');
   const [arroba, setArroba] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
-  const [isVerified, setIsVerified] = useState(false); // Novo estado do Verificado
+  const [isVerified, setIsVerified] = useState(false);
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
+  const [fazendoUpload, setFazendoUpload] = useState(false); // Novo estado do Upload
 
   const router = useRouter();
   const supabase = createClient();
@@ -61,7 +64,7 @@ export default function DashboardClient({ user, isPro }: Props) {
     carregarPerfil();
   }, [supabase, user.id]);
 
-  // SALVAR NO SUPABASE
+  // SALVAR PERFIL GERAL NO SUPABASE
   const salvarPerfil = async () => {
     setSalvandoPerfil(true);
     const { error } = await supabase
@@ -79,6 +82,44 @@ export default function DashboardClient({ user, isPro }: Props) {
       alert('Erro ao salvar no banco de dados.');
     } else {
       alert('Perfil salvo na nuvem com sucesso!');
+    }
+  };
+
+  // UPLOAD DE AVATAR DIRETO PRO SUPABASE STORAGE (Max 5MB)
+  const handleUploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      setFazendoUpload(true);
+      if (!event.target.files || event.target.files.length === 0) return;
+      
+      const file = event.target.files[0];
+      
+      if (file.size > 5 * 1024 * 1024) {
+        alert('A imagem deve ter no máximo 5MB.');
+        return;
+      }
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
+      
+      setAvatarUrl(data.publicUrl);
+      
+      // Já salva no banco de dados automaticamente para o usuário não precisar clicar em Salvar
+      await supabase.from('users').update({ avatar_url: data.publicUrl }).eq('id', user.id);
+      
+      alert('Foto de perfil atualizada!');
+    } catch (error) {
+      console.error(error);
+      alert('Erro ao fazer upload da imagem. Verifique se o bucket "avatars" foi criado e está como Público no Supabase.');
+    } finally {
+      setFazendoUpload(false);
     }
   };
 
@@ -129,7 +170,6 @@ export default function DashboardClient({ user, isPro }: Props) {
     }
   };
 
-  // Envia a flag de verificado para a imagem
   const getSlideImageUrl = (slide: Slide) => {
     const imgParam = slide.imageUrl ? encodeURIComponent(slide.imageUrl) : 'null';
     const nomeParam = encodeURIComponent(nome || 'Seu Nome');
@@ -215,37 +255,62 @@ export default function DashboardClient({ user, isPro }: Props) {
           </div>
         )}
 
-        {/* --- PAINEL DE PERFIL ATUALIZADO --- */}
+        {/* --- PAINEL DE PERFIL (COM UPLOAD DE IMAGEM) --- */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-8">
           <h2 className="text-xl font-bold text-white mb-4">Personalizar Visual do Tweet</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            
             <div className="md:col-span-1">
               <label className="block text-gray-400 text-sm mb-1">Nome de Exibição</label>
               <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white outline-none" />
             </div>
+            
             <div className="md:col-span-1">
               <label className="block text-gray-400 text-sm mb-1">Nome de Usuário (@)</label>
               <input type="text" value={arroba} onChange={(e) => setArroba(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white outline-none" />
             </div>
+            
+            {/* BOTÃO DE UPLOAD DE FOTO */}
             <div className="md:col-span-1">
-              <label className="block text-gray-400 text-sm mb-1">URL do Avatar</label>
-              <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white outline-none" />
+              <label className="block text-gray-400 text-sm mb-1">Foto de Perfil (Max 5MB)</label>
+              <div className="relative">
+                <input 
+                  type="file" 
+                  accept="image/png, image/jpeg, image/jpg, image/webp"
+                  onChange={handleUploadAvatar}
+                  disabled={fazendoUpload}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
+                />
+                <div className={`w-full h-[42px] bg-gray-800 border border-gray-700 rounded-xl px-4 flex items-center justify-center transition-colors ${fazendoUpload ? 'opacity-50' : 'hover:bg-gray-700'}`}>
+                  <span className="text-sm font-medium text-white truncate">
+                    {fazendoUpload ? 'Enviando...' : avatarUrl ? 'Trocar Foto' : 'Fazer Upload'}
+                  </span>
+                </div>
+              </div>
             </div>
+
             <div className="md:col-span-1 flex flex-col justify-end">
-              <label className="flex items-center gap-3 cursor-pointer bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 h-[42px]">
+              <label className="flex items-center justify-center gap-3 cursor-pointer bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 h-[42px] hover:bg-gray-700 transition-colors">
                 <input 
                   type="checkbox" 
                   checked={isVerified} 
                   onChange={(e) => setIsVerified(e.target.checked)} 
                   className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-600 focus:ring-2"
                 />
-                <span className="text-sm font-medium text-white select-none">Verificado</span>
+                <span className="text-sm font-medium text-white select-none">Selo Verificado</span>
               </label>
             </div>
+
           </div>
-          <button onClick={salvarPerfil} disabled={salvandoPerfil} className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white font-bold py-2 px-6 rounded-lg transition-colors text-sm">
-            {salvandoPerfil ? 'Salvando na Nuvem...' : 'Salvar Perfil na Nuvem'}
-          </button>
+          
+          <div className="flex items-center gap-4">
+            <button onClick={salvarPerfil} disabled={salvandoPerfil} className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white font-bold py-2 px-6 rounded-lg transition-colors text-sm">
+              {salvandoPerfil ? 'Salvando na Nuvem...' : 'Salvar Perfil na Nuvem'}
+            </button>
+            {avatarUrl && (
+              <span className="text-xs text-green-400">✅ Foto carregada no sistema</span>
+            )}
+          </div>
         </div>
 
         {/* Formulario de Geração */}
