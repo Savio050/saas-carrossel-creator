@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Tema é obrigatório' }, { status: 400 });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     // O Prompt focado no formato Ilustrativo (Estilo "Futebol Interativo", "Mentalidade", etc)
     const prompt = `
@@ -20,16 +20,16 @@ export async function POST(req: Request) {
       Crie um roteiro para um carrossel no estilo "Ilustrativo" sobre o tema: "${tema}".
       
       Regras rigorosas:
-      1. O carrossel DEVE ter exatamente 5 slides.
+      1. O carrossel DEVE ter entre 5 e 12 slides.
       2. Slide 1 (tipo: "capa"): Título de impacto, muito curto (máximo 7 palavras). Letras maiúsculas.
-      3. Slides 2, 3 e 4 (tipo: "conteudo"): Desenvolvimento rápido. Máximo de 2 frases curtas por slide. Sem clichês.
-      4. Slide 5 (tipo: "cta"): Uma chamada para ação agressiva focada em automação. Ofereça algo (aula, material, link) e peça para o usuário comentar uma palavra-chave ESPECÍFICA (uma palavra só, sem espaços, em maiúsculo).
+      3. Slides 2, 3 e 4 ... (tipo: "conteudo"): Desenvolvimento rápido. Máximo de 2 frases curtas por slide. Sem clichês. sem negrito, sem emojis
+      4. Ultimo Slide (tipo: "cta"): Uma chamada para ação agressiva focada em automação. Ofereça algo (aula, material, link) e peça para o usuário comentar uma palavra-chave ESPECÍFICA (uma palavra só, sem espaços, em maiúsculo).
       5. Para cada slide, forneça um "termo_pesquisa" em INGLÊS que represente perfeitamente o fundo ideal (ex: "football stadium dark", "businessman thinking", "laptop coding").
 
       Retorne APENAS um JSON válido, sem formatação markdown extra, exatamente neste formato:
       {
         "tema_principal": "Resumo do tema",
-        "numero_de_slides": 5,
+        "numero_de_slides": X,
         "palavra_comentario": "AULA",
         "carrossel": [
           {
