@@ -3,21 +3,23 @@ import { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
+// Formato Retrato do Instagram (O padrão ouro para retenção)
 const W = 1080;
-const H = 1080;
+const H = 1350; 
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-
-    const texto = searchParams.get('texto') || 'Slide';
+    
+    // Parâmetros de Texto e Configuração
+    const texto = searchParams.get('texto') || 'Texto não encontrado';
     const imageUrl = searchParams.get('imageUrl');
-    const tipo = searchParams.get('tipo') || 'conteudo'; // capa | conteudo | cta
-    const nomeMarca = searchParams.get('marca') || 'SUA MARCA';
-    const arroba = searchParams.get('arroba') || '@seu_arroba';
-    const palavraComentario = searchParams.get('comentario') || 'EUQUERO';
+    // Pegamos o layout. Se não vier, usamos o 'tipo' como fallback de segurança
+    const layout = searchParams.get('layout') || searchParams.get('tipo') || 'conteudo_overlay'; 
+    const nomeMarca = searchParams.get('marca') || 'FUTEBOL INTERATIVO';
+    const palavraComentario = searchParams.get('comentario') || 'MED';
 
-    // Busca a imagem com fallback seguro
+    // Sistema Blindado de Busca de Imagem (ArrayBuffer -> Base64)
     let imageData: string | null = null;
     if (imageUrl && imageUrl !== 'null' && imageUrl !== 'undefined') {
       try {
@@ -32,369 +34,109 @@ export async function GET(req: NextRequest) {
           imageData = `data:${contentType};base64,${base64}`;
         }
       } catch {
-        // fallback silencioso - renderiza sem imagem
         imageData = null;
       }
     }
 
-    // ---- LAYOUT: CAPA ----
-    if (tipo === 'capa') {
+    // ==========================================
+    // 1. LAYOUT: CAPA (Impacto Extremo)
+    // ==========================================
+    if (layout === 'capa') {
       return new ImageResponse(
         (
-          <div
-            style={{
-              width: W,
-              height: H,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              position: 'relative',
-              backgroundColor: '#111111',
-              overflow: 'hidden',
-            }}
-          >
-            {imageData && (
-              <img
-                src={imageData}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                }}
-              />
-            )}
-            {/* Gradiente preto inferior */}
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: '70%',
-                background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 50%, transparent 100%)',
-                display: 'flex',
-              }}
-            />
-            {/* Nome da marca no topo */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                padding: '40px 60px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 28,
-                  fontWeight: 700,
-                  color: '#ffffff',
-                  letterSpacing: 4,
-                  textTransform: 'uppercase',
-                  backgroundColor: 'rgba(255,107,0,0.85)',
-                  padding: '10px 28px',
-                  borderRadius: 8,
-                  display: 'flex',
-                }}
-              >
-                {nomeMarca}
-              </div>
+          <div style={{ width: W, height: H, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', position: 'relative', backgroundColor: '#111', overflow: 'hidden' }}>
+            {imageData && <img src={imageData} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+            
+            {/* Máscara Degradê Escura no Rodapé */}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '65%', background: 'linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.4), transparent)' }} />
+            
+            {/* Logo / Nome da Marca no Topo */}
+            <div style={{ position: 'absolute', top: 60, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ color: 'white', fontSize: 24, fontWeight: 800, letterSpacing: '0.2em' }}>{nomeMarca}</div>
             </div>
-            {/* Titulo gigante no rodape */}
-            <div
-              style={{
-                position: 'relative',
-                zIndex: 10,
-                padding: '0 70px 80px',
-                display: 'flex',
-                width: '100%',
-                justifyContent: 'center',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 85,
-                  fontWeight: 900,
-                  color: '#ffffff',
-                  textTransform: 'uppercase',
-                  textAlign: 'center',
-                  lineHeight: 1.05,
-                  letterSpacing: -1,
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  justifyContent: 'center',
-                }}
-              >
+
+            {/* Título Gigante */}
+            <div style={{ position: 'relative', zIndex: 10, padding: '0 60px 100px 60px', display: 'flex', width: '100%', justifyContent: 'center' }}>
+              <div style={{ fontSize: 95, fontWeight: 900, color: 'white', textTransform: 'uppercase', textAlign: 'center', lineHeight: 0.9, letterSpacing: '-0.04em' }}>
                 {texto}
               </div>
             </div>
           </div>
-        ),
-        { width: W, height: H }
+        ), { width: W, height: H }
       );
     }
 
-    // ---- LAYOUT: CONTEUDO ----
-    if (tipo === 'conteudo') {
+    // ==========================================
+    // 2. LAYOUT: CONTEÚDO SPLIT (Fundo Branco Embaixo)
+    // ==========================================
+    if (layout === 'conteudo_split') {
       return new ImageResponse(
         (
-          <div
-            style={{
-              width: W,
-              height: H,
-              display: 'flex',
-              position: 'relative',
-              backgroundColor: '#111111',
-              overflow: 'hidden',
-            }}
-          >
-            {imageData && (
-              <img
-                src={imageData}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                }}
-              />
-            )}
-            {/* Mascara preta solida */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0,0,0,0.62)',
-                display: 'flex',
-              }}
-            />
-            {/* Barra laranja lateral */}
-            <div
-              style={{
-                position: 'absolute',
-                left: 60,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: 7,
-                height: 220,
-                backgroundColor: '#FF6B00',
-                borderRadius: 4,
-                display: 'flex',
-              }}
-            />
-            {/* Texto central alinhado a esquerda */}
-            <div
-              style={{
-                position: 'relative',
-                zIndex: 10,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'flex-start',
-                width: '100%',
-                height: '100%',
-                padding: '80px 90px 80px 100px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 54,
-                  fontWeight: 700,
-                  color: '#ffffff',
-                  lineHeight: 1.35,
-                  letterSpacing: -0.5,
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  textAlign: 'left',
-                }}
-              >
+          <div style={{ width: W, height: H, display: 'flex', flexDirection: 'column', backgroundColor: '#F4F7F6', overflow: 'hidden' }}>
+            {/* Metade Superior: Imagem */}
+            <div style={{ display: 'flex', width: '100%', height: '55%', position: 'relative', backgroundColor: '#E2E8F0' }}>
+              {imageData && <img src={imageData} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+            </div>
+            
+            {/* Metade Inferior: Texto Limpo e Escuro */}
+            <div style={{ display: 'flex', width: '100%', height: '45%', padding: '0 100px', flexDirection: 'column', justifyContent: 'center' }}>
+              <div style={{ fontSize: 52, fontWeight: 500, color: '#0F172A', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
                 {texto}
-              </div>
-              {/* Marca no canto inferior */}
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: 50,
-                  right: 70,
-                  fontSize: 22,
-                  color: 'rgba(255,255,255,0.55)',
-                  fontWeight: 500,
-                  display: 'flex',
-                  letterSpacing: 1,
-                }}
-              >
-                {arroba}
               </div>
             </div>
           </div>
-        ),
-        { width: W, height: H }
+        ), { width: W, height: H }
       );
     }
 
-    // ---- LAYOUT: CTA ----
+    // ==========================================
+    // 3. LAYOUT: CTA MINIMALISTA (Fundo Azul + Botão)
+    // ==========================================
+    if (layout === 'cta_minimalista' || layout === 'cta') {
+      return new ImageResponse(
+        (
+          <div style={{ width: W, height: H, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', backgroundColor: '#001E60', overflow: 'hidden' }}>
+            {/* Imagem de fundo bem apagada, quase marca d'água */}
+            {imageData && <img src={imageData} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', opacity: 0.15 }} />}
+            
+            <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 60, padding: '0 100px' }}>
+              
+              {/* Texto Principal do CTA */}
+              <div style={{ fontSize: 60, fontWeight: 500, color: 'white', textAlign: 'center', lineHeight: 1.3, whiteSpace: 'pre-wrap' }}>
+                {texto}
+              </div>
+
+              {/* Botão de Comentário */}
+              <div style={{ display: 'flex', backgroundColor: 'white', padding: '30px 80px', borderRadius: 40, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+                <span style={{ color: '#001E60', fontSize: 56, fontWeight: 900 }}>Comente {palavraComentario}</span>
+              </div>
+            </div>
+          </div>
+        ), { width: W, height: H }
+      );
+    }
+
+    // ==========================================
+    // 4. LAYOUT PADRÃO: CONTEÚDO OVERLAY (Imagem Tela Cheia + Máscara)
+    // ==========================================
     return new ImageResponse(
       (
-        <div
-          style={{
-            width: W,
-            height: H,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-            backgroundColor: '#002882',
-            overflow: 'hidden',
-          }}
-        >
-          {imageData && (
-            <img
-              src={imageData}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                opacity: 0.3,
-              }}
-            />
-          )}
-          {/* Vinheta de borda */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.5) 100%)',
-              display: 'flex',
-            }}
-          />
-          {/* Conteudo central */}
-          <div
-            style={{
-              position: 'relative',
-              zIndex: 10,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 40,
-              padding: '0 80px',
-            }}
-          >
-            {/* Badge arroba */}
-            <div
-              style={{
-                fontSize: 28,
-                fontWeight: 700,
-                color: '#FF6B00',
-                backgroundColor: 'rgba(255,107,0,0.15)',
-                border: '2px solid rgba(255,107,0,0.5)',
-                padding: '12px 32px',
-                borderRadius: 50,
-                letterSpacing: 2,
-                display: 'flex',
-              }}
-            >
-              {arroba}
-            </div>
-            {/* Texto CTA */}
-            <div
-              style={{
-                fontSize: 56,
-                fontWeight: 900,
-                color: '#ffffff',
-                textAlign: 'center',
-                lineHeight: 1.2,
-                letterSpacing: -0.5,
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-              }}
-            >
+        <div style={{ width: W, height: H, display: 'flex', position: 'relative', backgroundColor: '#111', overflow: 'hidden' }}>
+          {imageData && <img src={imageData} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+          
+          {/* Máscara Escura para garantir leitura */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)' }} />
+          
+          <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 100px', width: '100%' }}>
+            <div style={{ fontSize: 56, fontWeight: 600, color: 'white', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
               {texto}
             </div>
-            {/* Botao branco gigante */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                color: '#002882',
-                fontSize: 46,
-                fontWeight: 900,
-                padding: '26px 70px',
-                borderRadius: 20,
-                letterSpacing: 2,
-                textTransform: 'uppercase',
-                display: 'flex',
-                marginTop: 10,
-              }}
-            >
-              Comente {palavraComentario}
-            </div>
-          </div>
-          {/* Marca no canto inferior */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 50,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-            }}
-          >
-            <div
-              style={{
-                width: 40,
-                height: 3,
-                backgroundColor: '#FF6B00',
-                borderRadius: 2,
-                display: 'flex',
-              }}
-            />
-            <div
-              style={{
-                fontSize: 24,
-                color: 'rgba(255,255,255,0.7)',
-                fontWeight: 600,
-                letterSpacing: 2,
-                display: 'flex',
-              }}
-            >
-              {nomeMarca}
-            </div>
-            <div
-              style={{
-                width: 40,
-                height: 3,
-                backgroundColor: '#FF6B00',
-                borderRadius: 2,
-                display: 'flex',
-              }}
-            />
           </div>
         </div>
-      ),
-      { width: W, height: H }
+      ), { width: W, height: H }
     );
+
   } catch (error) {
-    console.error('Erro em /api/og-ilustrativo:', error);
     return new Response('Erro ao gerar imagem', { status: 500 });
   }
 }
