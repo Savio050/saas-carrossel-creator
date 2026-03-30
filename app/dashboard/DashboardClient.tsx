@@ -155,14 +155,13 @@ export default function DashboardClient({ user, isPro }: Props) {
     const arrobaParam = encodeURIComponent(arroba || '@seu_arroba');
 
     if (carrosselData.estilo === 'ilustrativo') {
-      const tipoParam = slide.tipo || 'conteudo';
+      // NOVO: Pega o layout gerado pela IA ou usa o tipo como fallback
+      const layoutParam = slide.layout || slide.tipo || 'conteudo_overlay';
       const comParam = encodeURIComponent(carrosselData.palavra_comentario || 'EUQUERO');
-      return `/api/og-ilustrativo?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&marca=${nomeParam}&arroba=${arrobaParam}&tipo=${tipoParam}&comentario=${comParam}`;
+      
+      // NOVO: Passando o parâmetro &layout=
+      return `/api/og-ilustrativo?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&marca=${nomeParam}&arroba=${arrobaParam}&layout=${layoutParam}&comentario=${comParam}`;
     }
-
-    const avatarParam = encodeURIComponent(avatarUrl || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png');
-    return `/api/og-image?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&nome=${nomeParam}&arroba=${arrobaParam}&avatar=${avatarParam}&verified=${isVerified}`;
-  };
 
   const updateSlideAtual = (updates: Partial<Slide>) => {
     if (!carrossel) return;
