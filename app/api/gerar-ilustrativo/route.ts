@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Tema obrigatorio' }, { status: 400 });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `Voce e um especialista em marketing de conteudo para redes sociais.
 Crie um carrossel ilustrativo com EXATAMENTE 5 slides sobre o tema: "${tema}".
