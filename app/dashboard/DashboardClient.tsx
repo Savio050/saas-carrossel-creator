@@ -394,7 +394,8 @@ export default function DashboardClient({ user, isPro }: Props) {
                         className={`font-bold py-3 px-4 rounded-xl text-xs transition-all ${carrossel.carrossel[slideAtual].usar_imagem ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-gray-900 text-gray-500 border border-gray-800'}`}
                       >
                         {carrossel.carrossel[slideAtual].usar_imagem ? 'REMOVER IMAGEM' : 'USAR IMAGEM'}
-refactor: novo Design System (Orange/Dark), Sidebar, Estúdio Side-by-Side e upload Supabase                    </div>
+                      </button>
+                    </div>
 
                     <a 
                       href={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} 
