@@ -32,61 +32,74 @@ export async function POST(req: NextRequest) {
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const prompt = `Voce e um especialista em marketing de conteudo para redes sociais.
-Crie um carrossel ilustrativo com EXATAMENTE 5 slides sobre o tema: "${tema}".
+    const prompt = `
+Você é um Copywriter Sênior e Diretor de Arte especialista em carrosséis de retenção extrema para Instagram (Estilo Documentário/Storytelling).
 
-Retorne APENAS um JSON valido, sem markdown, sem explicacoes, sem blocos de codigo.
-O JSON deve ter este formato exato:
+Sua missão é criar o roteiro de um carrossel sobre o tema: "${tema}".
+
+DIRETRIZES DE ENGAJAMENTO (COPY):
+- O carrossel DEVE ter entre 8 e 15 slides.
+- Use a técnica de "Escorregador": cada slide deve deixar um gancho para o próximo.
+- Textos dos slides de conteúdo devem ser curtos (máximo 15 a 20 palavras).
+- Linguagem de autoridade, revelando "bastidores", "segredos" ou "erros fatais".
+
+DIRETRIZES DE DIREÇÃO DE ARTE (VISUAL):
+Para reproduzir o design perfeito, você deve assinalar a propriedade "layout" de cada slide escolhendo UMA das opções abaixo:
+1. "capa": Uso exclusivo no slide 1. Título GIGANTE EM UPPERCASE no rodapé.
+2. "conteudo_overlay": Imagem em tela cheia com máscara escura, texto branco legível e centralizado.
+3. "conteudo_split": Imagem na metade superior, fundo branco sólido na metade inferior com texto escuro e elegante (excelente para respiros visuais).
+4. "cta_minimalista": Uso exclusivo no último slide. Fundo em cor sólida, texto direto e um "botão" de comentário.
+
+ESTRUTURA OBRIGATÓRIA DO JSON (Retorne APENAS o JSON, sem markdown ou explicações):
 {
   "tema_principal": "string com o tema resumido",
-  "numero_de_slides": 5,
+  "numero_de_slides": integer (entre 8 e 15),
   "estilo": "ilustrativo",
-  "palavra_comentario": "PALAVRA",
+  "palavra_comentario": "PALAVRA_EM_UPPERCASE",
   "carrossel": [
     {
       "slide": 1,
       "tipo": "capa",
-      "texto": "TITULO DE IMPACTO EM UPPERCASE (maximo 8 palavras)",
+      "layout": "capa",
+      "texto": "TITULO DE IMPACTO GIGANTE (MAX 7 PALAVRAS)",
       "usar_imagem": true,
-      "termo_pesquisa": "english search term for pexels image"
+      "termo_pesquisa": "english search term for pexels (e.g., sad athlete, dark office)"
     },
     {
       "slide": 2,
       "tipo": "conteudo",
-      "texto": "Desenvolvimento do ponto 1 com insight valioso. Use 2 a 3 frases curtas e diretas.",
+      "layout": "conteudo_overlay",
+      "texto": "A narrativa começa aqui com um problema ou curiosidade intrigante.",
       "usar_imagem": true,
-      "termo_pesquisa": "english search term for pexels image"
+      "termo_pesquisa": "english search term"
     },
     {
       "slide": 3,
       "tipo": "conteudo",
-      "texto": "Desenvolvimento do ponto 2 com dado ou exemplo pratico. Use 2 a 3 frases curtas.",
+      "layout": "conteudo_split",
+      "texto": "Use este layout de fundo branco para destacar um dado técnico ou fato oficial.",
       "usar_imagem": true,
-      "termo_pesquisa": "english search term for pexels image"
+      "termo_pesquisa": "english search term"
     },
     {
-      "slide": 4,
+      "slide": "...",
       "tipo": "conteudo",
-      "texto": "Conclusao com dica acionavel e pratica. Use 2 a 3 frases motivadoras.",
+      "layout": "Intercale entre conteudo_overlay e conteudo_split para dinamicidade",
+      "texto": "...",
       "usar_imagem": true,
-      "termo_pesquisa": "english search term for pexels image"
+      "termo_pesquisa": "..."
     },
     {
-      "slide": 5,
+      "slide": "ultimo",
       "tipo": "cta",
-      "texto": "Comente abaixo com a palavra-chave para receber o material completo!",
-      "usar_imagem": true,
-      "termo_pesquisa": "english search term for pexels image"
+      "layout": "cta_minimalista",
+      "texto": "Quer dominar [ASSUNTO]?\\n\\nComente [PALAVRA]\\n\\ne receba o acesso no direct!",
+      "usar_imagem": false,
+      "termo_pesquisa": ""
     }
   ]
 }
-
-Regras obrigatorias:
-- "palavra_comentario" deve ser UMA unica palavra em UPPERCASE sem espacos (ex: QUERO, ACESSO, SIM, INICIO, CRESCER)
-- "termo_pesquisa" deve estar em INGLES, ser especifico e visual (ex: "modern city skyline night", "entrepreneur working laptop cafe", "social media marketing strategy")
-- O texto do slide 1 (capa) deve ser CURTO, IMPACTANTE e em UPPERCASE
-- Os slides de conteudo devem trazer valor real e pratico sobre: ${tema}
-- Retorne APENAS o JSON, absolutamente nada mais`;
+`;
 
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
