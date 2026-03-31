@@ -15,7 +15,9 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Download,
-  Upload
+  Upload,
+  Menu,
+  X
 } from 'lucide-react';
 
 interface Slide {
@@ -49,6 +51,9 @@ export default function DashboardClient({ user, isPro }: Props) {
   const [carrossel, setCarrossel] = useState<Carrossel | null>(null);
   const [error, setError] = useState('');
   const [slideAtual, setSlideAtual] = useState(0);
+  
+  // NOVO: Controle do Menu no Celular
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Perfil
   const [nome, setNome] = useState('');
@@ -175,9 +180,15 @@ export default function DashboardClient({ user, isPro }: Props) {
     setCarrossel({ ...carrossel, carrossel: novosSlides });
   };
 
+  // Menu Item agora fecha o menu mobile ao ser clicado
   const MenuItem = ({ id, label, icon, disabled = false }: { id: string, label: string, icon: any, disabled?: boolean }) => (
     <button
-      onClick={() => !disabled && setActiveTab(id)}
+      onClick={() => {
+        if (!disabled) {
+          setActiveTab(id);
+          setIsMobileMenuOpen(false); // Fecha a gaveta no celular
+        }
+      }}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
         activeTab === id 
           ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' 
@@ -193,14 +204,32 @@ export default function DashboardClient({ user, isPro }: Props) {
   return (
     <div className="flex h-screen bg-[#111111] text-gray-100 overflow-hidden font-sans">
       
-      {/* SIDEBAR */}
-      <aside className="w-72 bg-gray-950 border-r border-gray-900 flex flex-col p-6">
-        <div className="flex items-center gap-2 mb-10 px-2">
-          <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center font-bold text-black">C</div>
-          <h1 className="text-xl font-bold tracking-tight">Carrossel<span className="text-orange-500">Creator</span></h1>
+      {/* OVERLAY MOBILE: Escurece o fundo quando o menu abre */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/80 z-40 lg:hidden backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* SIDEBAR: Agora é responsiva (Fixed no mobile, Relative no desktop) */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-72 bg-gray-950 border-r border-gray-900 flex flex-col p-6 transition-transform duration-300 ease-in-out
+        lg:relative lg:translate-x-0
+        ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
+      `}>
+        <div className="flex items-center justify-between mb-10 px-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center font-bold text-black">C</div>
+            <h1 className="text-xl font-bold tracking-tight">Carrossel<span className="text-orange-500">Creator</span></h1>
+          </div>
+          {/* Botão de Fechar apenas no celular */}
+          <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-gray-400 hover:text-white">
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
-        <nav className="flex-1 space-y-2">
+        <nav className="flex-1 space-y-2 overflow-y-auto">
           <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold mb-4 px-2">Formatos</p>
           <MenuItem id="twitter" label="Twitter Style" icon={<Twitter className="w-5 h-5" />} />
           <MenuItem id="ilustrativo" label="Ilustrativo" icon={<ImageIcon className="w-5 h-5" />} />
@@ -212,7 +241,7 @@ export default function DashboardClient({ user, isPro }: Props) {
 
         <button 
           onClick={() => supabase.auth.signOut().then(() => router.push('/'))}
-          className="mt-auto flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-red-400 transition-colors"
+          className="mt-6 flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-red-400 transition-colors"
         >
           <LogOut className="w-5 h-5" />
           <span>Sair da conta</span>
@@ -222,11 +251,18 @@ export default function DashboardClient({ user, isPro }: Props) {
       {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto relative bg-[#0a0a0a]">
         
-        <header className="sticky top-0 z-30 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-gray-900 px-8 py-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
-            Dashboard / {activeTab}
-          </h2>
-          <div className="flex items-center gap-4">
+        {/* HEADER RESPONSIVO */}
+        <header className="sticky top-0 z-30 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-gray-900 px-4 lg:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden text-gray-300 hover:text-white bg-gray-900 p-2 rounded-lg border border-gray-800">
+              <Menu className="w-5 h-5" />
+            </button>
+            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest hidden sm:block">
+              Dashboard / {activeTab}
+            </h2>
+          </div>
+          
+          <div className="flex items-center gap-3 lg:gap-4">
             {isPro && <span className="bg-orange-500/10 text-orange-500 text-[10px] font-bold px-3 py-1 rounded-full border border-orange-500/20">PLANO PRO</span>}
             <div className="w-8 h-8 rounded-full bg-gray-800 overflow-hidden border border-gray-700">
               {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs">?</div>}
@@ -234,14 +270,14 @@ export default function DashboardClient({ user, isPro }: Props) {
           </div>
         </header>
 
-        <div className="p-8 max-w-[1600px] mx-auto">
+        <div className="p-4 lg:p-8 max-w-[1600px] mx-auto">
           
           {/* TELA: PERFIL */}
           {activeTab === 'perfil' && (
-            <div className="max-w-2xl bg-gray-950 border border-gray-900 rounded-2xl p-8 space-y-8">
+            <div className="max-w-2xl bg-gray-950 border border-gray-900 rounded-2xl p-6 lg:p-8 space-y-8">
               <h3 className="text-2xl font-bold">Perfil da Marca</h3>
               
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-500 uppercase">Nome / Marca</label>
                   <input value={nome} onChange={e => setNome(e.target.value)} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none transition-all" />
@@ -252,11 +288,11 @@ export default function DashboardClient({ user, isPro }: Props) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-8 p-6 bg-[#111111] rounded-2xl border border-gray-800">
-                <div className="w-20 h-20 rounded-full bg-gray-800 border-2 border-orange-500 relative overflow-hidden group">
+              <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-[#111111] rounded-2xl border border-gray-800 text-center sm:text-left">
+                <div className="w-20 h-20 rounded-full bg-gray-800 border-2 border-orange-500 relative overflow-hidden group flex-shrink-0">
                   {avatarUrl && <img src={avatarUrl} className="w-full h-full object-cover" />}
                   <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-                    <Upload className="w-5 h-5" />
+                    <Upload className="w-5 h-5 text-white" />
                     <input type="file" className="hidden" onChange={handleUploadAvatar} />
                   </label>
                 </div>
@@ -264,7 +300,7 @@ export default function DashboardClient({ user, isPro }: Props) {
                   <h4 className="font-bold">Foto de Perfil</h4>
                   <p className="text-sm text-gray-500">Usado no estilo Twitter. Recomenda-se 400x400.</p>
                 </div>
-                <div className="ml-auto flex items-center gap-2">
+                <div className="sm:ml-auto flex items-center gap-2 mt-4 sm:mt-0">
                    <input type="checkbox" checked={isVerified} onChange={e => setIsVerified(e.target.checked)} className="w-5 h-5 accent-orange-500" />
                    <span className="text-sm font-bold">Selo Verificado</span>
                 </div>
@@ -287,29 +323,30 @@ export default function DashboardClient({ user, isPro }: Props) {
 
           {/* GERADOR */}
           {(activeTab === 'twitter' || activeTab === 'ilustrativo') && !carrossel && (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8">
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8 py-10">
               <div className="w-20 h-20 bg-orange-500/10 rounded-3xl flex items-center justify-center text-orange-500 mb-4">
                 {activeTab === 'twitter' ? <Twitter className="w-10 h-10" /> : <ImageIcon className="w-10 h-10" />}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 px-4">
                 <h3 className="text-3xl font-black">Crie um Carrossel {activeTab === 'twitter' ? 'Viral' : 'Magnético'}</h3>
                 <p className="text-gray-500 max-w-md mx-auto">Nossa IA modela o roteiro perfeito e busca imagens de alta qualidade automaticamente.</p>
               </div>
 
-              <form onSubmit={handleGenerate} className="w-full max-w-2xl flex flex-col gap-4">
+              <form onSubmit={handleGenerate} className="w-full max-w-2xl flex flex-col gap-4 px-4">
                 <div className="relative group">
                   <input 
                     value={tema} 
                     onChange={e => setTema(e.target.value)}
-                    placeholder="Sobre o que vamos falar hoje? Ex: Dicas de produtividade..."
-                    className="w-full bg-gray-950 border border-gray-800 rounded-2xl px-6 py-5 text-lg focus:border-orange-500 outline-none transition-all shadow-2xl group-hover:border-gray-700"
+                    placeholder="Ex: Dicas de produtividade..."
+                    className="w-full bg-gray-950 border border-gray-800 rounded-2xl px-6 py-4 lg:py-5 pr-32 lg:pr-48 text-base lg:text-lg focus:border-orange-500 outline-none transition-all shadow-2xl group-hover:border-gray-700"
                   />
                   <button 
                     disabled={loading}
-                    className="absolute right-3 top-3 bottom-3 bg-orange-500 hover:bg-orange-600 text-black px-8 rounded-xl font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+                    className="absolute right-2 top-2 bottom-2 lg:right-3 lg:top-3 lg:bottom-3 bg-orange-500 hover:bg-orange-600 text-black px-4 lg:px-8 rounded-xl font-bold transition-all flex items-center gap-2 disabled:opacity-50 text-sm lg:text-base"
                   >
-                    {loading ? <Zap className="w-5 h-5 animate-pulse" /> : <Plus className="w-5 h-5" />}
-                    {loading ? 'Gerando...' : 'Criar Agora'}
+                    {loading ? <Zap className="w-4 h-4 lg:w-5 lg:h-5 animate-pulse" /> : <Plus className="w-4 h-4 lg:w-5 lg:h-5" />}
+                    <span className="hidden sm:inline">{loading ? 'Gerando...' : 'Criar Agora'}</span>
+                    <span className="sm:hidden">{loading ? '...' : 'Criar'}</span>
                   </button>
                 </div>
                 {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
@@ -317,20 +354,20 @@ export default function DashboardClient({ user, isPro }: Props) {
             </div>
           )}
 
-          {/* ESTÚDIO SIDE-BY-SIDE */}
+          {/* ESTÚDIO SIDE-BY-SIDE RESPONSIVO */}
           {carrossel && (activeTab === 'twitter' || activeTab === 'ilustrativo') && (
-            <div className="flex flex-col lg:flex-row gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col xl:flex-row gap-6 lg:gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
               
               {/* Lado Esquerdo: Preview Gigante */}
-              <div className="flex-1 w-full space-y-6">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-4">
-                    <button onClick={() => setSlideAtual(prev => Math.max(0, prev - 1))} className="p-3 bg-gray-900 hover:bg-gray-800 rounded-full border border-gray-800 disabled:opacity-20" disabled={slideAtual === 0}><ChevronLeft /></button>
-                    <span className="font-mono text-xs text-gray-500 tracking-widest uppercase">Slide {slideAtual + 1} de {carrossel.numero_de_slides}</span>
-                    <button onClick={() => setSlideAtual(prev => Math.min(carrossel.carrossel.length - 1, prev + 1))} className="p-3 bg-gray-900 hover:bg-gray-800 rounded-full border border-gray-800 disabled:opacity-20" disabled={slideAtual === carrossel.carrossel.length - 1}><ChevronRight /></button>
+              <div className="flex-1 w-full space-y-4 lg:space-y-6">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-2">
+                  <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
+                    <button onClick={() => setSlideAtual(prev => Math.max(0, prev - 1))} className="p-3 bg-gray-900 hover:bg-gray-800 rounded-full border border-gray-800 disabled:opacity-20 flex-shrink-0" disabled={slideAtual === 0}><ChevronLeft className="w-5 h-5" /></button>
+                    <span className="font-mono text-xs text-gray-500 tracking-widest uppercase text-center">Slide {slideAtual + 1} de {carrossel.numero_de_slides}</span>
+                    <button onClick={() => setSlideAtual(prev => Math.min(carrossel.carrossel.length - 1, prev + 1))} className="p-3 bg-gray-900 hover:bg-gray-800 rounded-full border border-gray-800 disabled:opacity-20 flex-shrink-0" disabled={slideAtual === carrossel.carrossel.length - 1}><ChevronRight className="w-5 h-5" /></button>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setCarrossel(null)} className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-white transition-colors">DESCARTAR</button>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <button onClick={() => setCarrossel(null)} className="flex-1 sm:flex-none px-4 py-3 sm:py-2 text-xs font-bold text-gray-400 bg-gray-900 sm:bg-transparent rounded-lg hover:text-white transition-colors">DESCARTAR</button>
                     <button 
                       onClick={() => {
                         carrossel.carrossel.forEach(async (s, i) => {
@@ -340,27 +377,27 @@ export default function DashboardClient({ user, isPro }: Props) {
                           const a = document.createElement('a'); a.href = url; a.download = `slide-${i+1}.png`; a.click();
                         });
                       }}
-                      className="bg-white text-black px-6 py-2 rounded-lg text-xs font-black flex items-center gap-2"
+                      className="flex-1 sm:flex-none justify-center bg-white text-black px-4 sm:px-6 py-3 sm:py-2 rounded-lg text-xs font-black flex items-center gap-2"
                     >
-                      <Download className="w-4 h-4" /> BAIXAR TODOS
+                      <Download className="w-4 h-4" /> <span className="hidden sm:inline">BAIXAR TODOS</span>
                     </button>
                   </div>
                 </div>
 
-                <div className="aspect-square w-full max-w-[700px] mx-auto bg-gray-950 rounded-[40px] border border-gray-900 shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden relative group">
+                <div className="aspect-square w-full max-w-[700px] mx-auto bg-gray-950 rounded-[20px] lg:rounded-[40px] border border-gray-900 shadow-2xl overflow-hidden relative group">
                    <img 
                     src={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} 
                     className="w-full h-full object-contain pointer-events-none" 
                     key={`${slideAtual}-${activeTab}-${carrossel.carrossel[slideAtual].posicao_texto}`}
                   />
-                  <div className="absolute inset-0 border-[16px] border-black/5 rounded-[40px] pointer-events-none" />
+                  <div className="absolute inset-0 border-[8px] lg:border-[16px] border-black/5 rounded-[20px] lg:rounded-[40px] pointer-events-none" />
                 </div>
               </div>
 
               {/* Lado Direito: Controles */}
-              <div className="w-full lg:w-[450px] space-y-6">
-                <div className="bg-gray-950 border border-gray-900 rounded-3xl p-8 space-y-6 shadow-xl">
-                  <div className="flex items-center gap-3 mb-4">
+              <div className="w-full xl:w-[450px] space-y-6">
+                <div className="bg-gray-950 border border-gray-900 rounded-3xl p-6 lg:p-8 space-y-6 shadow-xl">
+                  <div className="flex items-center gap-3 mb-2 lg:mb-4">
                     <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
                     <h4 className="text-sm font-bold uppercase tracking-widest text-gray-400">Editor de Slide</h4>
                   </div>
@@ -371,11 +408,10 @@ export default function DashboardClient({ user, isPro }: Props) {
                       <textarea 
                         value={carrossel.carrossel[slideAtual].texto}
                         onChange={e => updateSlideAtual({ texto: e.target.value })}
-                        className="w-full bg-[#111111] border border-gray-800 rounded-2xl px-5 py-4 text-lg h-32 focus:border-orange-500 outline-none transition-all resize-none"
+                        className="w-full bg-[#111111] border border-gray-800 rounded-2xl px-4 py-4 text-base lg:text-lg h-32 focus:border-orange-500 outline-none transition-all resize-none"
                       />
                     </div>
 
-                    {/* NOVO BLOCO: BOTÕES DE POSIÇÃO DO TEXTO */}
                     {carrossel.estilo === 'ilustrativo' && (
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-600 uppercase">Alinhamento do Texto</label>
@@ -384,7 +420,7 @@ export default function DashboardClient({ user, isPro }: Props) {
                             <button
                               key={pos}
                               onClick={() => updateSlideAtual({ posicao_texto: pos })}
-                              className={`py-2 px-3 rounded-lg text-[10px] font-bold uppercase transition-all ${
+                              className={`py-2 px-2 lg:px-3 rounded-lg text-[10px] font-bold uppercase transition-all ${
                                 (carrossel.carrossel[slideAtual].posicao_texto || 'centro') === pos
                                   ? 'bg-orange-500 text-black'
                                   : 'bg-[#111111] border border-gray-800 text-gray-400 hover:border-gray-700 hover:text-white'
@@ -399,17 +435,17 @@ export default function DashboardClient({ user, isPro }: Props) {
 
                     {carrossel.estilo === 'ilustrativo' && carrossel.carrossel[slideAtual].tipo === 'cta' && (
                        <div className="space-y-2 pt-2">
-                        <label className="text-[10px] font-black text-gray-600 uppercase">Palavra-chave do Comentário</label>
+                        <label className="text-[10px] font-black text-gray-600 uppercase">Palavra do Comentário</label>
                         <input 
                           value={carrossel.palavra_comentario || ''}
                           onChange={e => setCarrossel({...carrossel, palavra_comentario: e.target.value.toUpperCase()})}
-                          className="w-full bg-[#111111] border border-gray-800 rounded-xl px-5 py-3 focus:border-orange-500 outline-none"
+                          className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none"
                         />
                       </div>
                     )}
 
-                    <div className="pt-4 border-t border-gray-900 grid grid-cols-2 gap-4">
-                      <div className="relative overflow-hidden">
+                    <div className="pt-4 border-t border-gray-900 grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
+                      <div className="relative overflow-hidden w-full">
                         <button className="w-full bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2">
                           <Upload className="w-4 h-4" /> MUDAR FUNDO
                         </button>
@@ -417,7 +453,7 @@ export default function DashboardClient({ user, isPro }: Props) {
                       </div>
                       <button 
                         onClick={() => updateSlideAtual({ usar_imagem: !carrossel.carrossel[slideAtual].usar_imagem })}
-                        className={`font-bold py-3 px-4 rounded-xl text-xs transition-all ${carrossel.carrossel[slideAtual].usar_imagem ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-gray-900 text-gray-500 border border-gray-800'}`}
+                        className={`w-full font-bold py-3 px-4 rounded-xl text-xs transition-all ${carrossel.carrossel[slideAtual].usar_imagem ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-gray-900 text-gray-500 border border-gray-800'}`}
                       >
                         {carrossel.carrossel[slideAtual].usar_imagem ? 'REMOVER IMAGEM' : 'USAR IMAGEM'}
                       </button>
@@ -426,15 +462,15 @@ export default function DashboardClient({ user, isPro }: Props) {
                     <a 
                       href={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} 
                       download={`slide-${slideAtual+1}.png`}
-                      className="w-full block text-center bg-orange-500 hover:bg-orange-600 text-black font-black py-4 rounded-xl transition-all shadow-lg shadow-orange-500/20"
+                      className="w-full block text-center bg-orange-500 hover:bg-orange-600 text-black font-black py-4 rounded-xl transition-all shadow-lg shadow-orange-500/20 mt-2"
                     >
-                      BAIXAR ESTE SLIDE (PNG)
+                      BAIXAR ESTE SLIDE
                     </a>
                   </div>
                 </div>
 
-                <div className="p-6 bg-orange-500/5 border border-orange-500/10 rounded-2xl flex items-start gap-4">
-                  <Zap className="w-6 h-6 text-orange-500 flex-shrink-0" />
+                <div className="p-5 lg:p-6 bg-orange-500/5 border border-orange-500/10 rounded-2xl flex items-start gap-4">
+                  <Zap className="w-5 h-5 lg:w-6 lg:h-6 text-orange-500 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-gray-400 leading-relaxed">
                     <strong className="text-orange-500 block mb-1">Dica de Especialista:</strong>
                     Carrosséis ilustrativos performam 42% melhor quando a imagem de fundo tem relação direta com a emoção do texto.
