@@ -24,17 +24,16 @@ interface Slide {
   usar_imagem: boolean;
   termo_pesquisa: string;
   imageUrl?: string | null;
-  tipo?: string; // 'capa' | 'conteudo' | 'cta'
-  layout?: string; // NOVO: 'capa' | 'conteudo_overlay' | 'conteudo_split' | 'cta_minimalista'
-  posicao_texto?: string; // 'topo' | 'centro' | 'rodape'
+  tipo?: string; 
+  layout?: string; 
+  posicao_texto?: string; 
 }
 
 interface Carrossel {
-  tema_principal
-    posicao_texto?: string; // 'topo' | 'centro' | 'rodape': string;
+  tema_principal: string;
   numero_de_slides: number;
   carrossel: Slide[];
-  estilo?: string; // 'twitter' | 'ilustrativo'
+  estilo?: string; 
   palavra_comentario?: string;
 }
 
@@ -158,13 +157,16 @@ export default function DashboardClient({ user, isPro }: Props) {
     const arrobaParam = encodeURIComponent(arroba || '@seu_arroba');
 
     if (carrosselData.estilo === 'ilustrativo') {
-      // NOVO: Pega o layout gerado pela IA ou usa o tipo como fallback
       const layoutParam = slide.layout || slide.tipo || 'conteudo_overlay';
       const comParam = encodeURIComponent(carrosselData.palavra_comentario || 'EUQUERO');
+      const posParam = slide.posicao_texto || 'centro'; 
       
-      // NOVO: Passando o parâmetro &layout=
-      return `/api/og-ilustrativo?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&marca=${nomeParam}&arroba=${arrobaParam}&layout=${layoutParam}&comentario=${comParam}`;
+      return `/api/og-ilustrativo?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&marca=${nomeParam}&arroba=${arrobaParam}&layout=${layoutParam}&comentario=${comParam}&posicao=${posParam}`;
     }
+
+    const avatarParam = encodeURIComponent(avatarUrl || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png');
+    return `/api/og-image?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&nome=${nomeParam}&arroba=${arrobaParam}&avatar=${avatarParam}&verified=${isVerified}`;
+  };
 
   const updateSlideAtual = (updates: Partial<Slide>) => {
     if (!carrossel) return;
@@ -349,7 +351,7 @@ export default function DashboardClient({ user, isPro }: Props) {
                    <img 
                     src={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} 
                     className="w-full h-full object-contain pointer-events-none" 
-                    key={`${slideAtual}-${activeTab}`}
+                    key={`${slideAtual}-${activeTab}-${carrossel.carrossel[slideAtual].posicao_texto}`}
                   />
                   <div className="absolute inset-0 border-[16px] border-black/5 rounded-[40px] pointer-events-none" />
                 </div>
@@ -369,12 +371,34 @@ export default function DashboardClient({ user, isPro }: Props) {
                       <textarea 
                         value={carrossel.carrossel[slideAtual].texto}
                         onChange={e => updateSlideAtual({ texto: e.target.value })}
-                        className="w-full bg-[#111111] border border-gray-800 rounded-2xl px-5 py-4 text-lg h-48 focus:border-orange-500 outline-none transition-all resize-none"
+                        className="w-full bg-[#111111] border border-gray-800 rounded-2xl px-5 py-4 text-lg h-32 focus:border-orange-500 outline-none transition-all resize-none"
                       />
                     </div>
 
+                    {/* NOVO BLOCO: BOTÕES DE POSIÇÃO DO TEXTO */}
+                    {carrossel.estilo === 'ilustrativo' && (
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-600 uppercase">Alinhamento do Texto</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {['topo', 'centro', 'rodape'].map((pos) => (
+                            <button
+                              key={pos}
+                              onClick={() => updateSlideAtual({ posicao_texto: pos })}
+                              className={`py-2 px-3 rounded-lg text-[10px] font-bold uppercase transition-all ${
+                                (carrossel.carrossel[slideAtual].posicao_texto || 'centro') === pos
+                                  ? 'bg-orange-500 text-black'
+                                  : 'bg-[#111111] border border-gray-800 text-gray-400 hover:border-gray-700 hover:text-white'
+                              }`}
+                            >
+                              {pos}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {carrossel.estilo === 'ilustrativo' && carrossel.carrossel[slideAtual].tipo === 'cta' && (
-                       <div className="space-y-2">
+                       <div className="space-y-2 pt-2">
                         <label className="text-[10px] font-black text-gray-600 uppercase">Palavra-chave do Comentário</label>
                         <input 
                           value={carrossel.palavra_comentario || ''}
@@ -411,24 +435,6 @@ export default function DashboardClient({ user, isPro }: Props) {
 
                 <div className="p-6 bg-orange-500/5 border border-orange-500/10 rounded-2xl flex items-start gap-4">
                   <Zap className="w-6 h-6 text-orange-500 flex-shrink-0" />
-                  <div className="pt-4 space-y-2">
-  <label className="text-[10px] font-black text-gray-600 uppercase text-gray-400">Posição do Texto</label>
-  <div className="grid grid-cols-3 gap-2">
-    {['topo', 'centro', 'rodape'].map((pos) => (
-      <button
-        key={pos}
-        onClick={() => updateSlideAtual({ posicao_texto: pos })}
-        className={`py-2 px-3 rounded-lg text-[10px] font-bold uppercase transition-all ${
-          (carrossel.carrossel[slideAtual].posicao_texto || 'centro') === pos
-            ? 'bg-orange-500 text-black'
-            : 'bg-[#111111] border border-gray-800 text-gray-400 hover:border-gray-700'
-        }`}
-      >
-        {pos}
-      </button>
-    ))}
-  </div>
-</div>
                   <p className="text-xs text-gray-400 leading-relaxed">
                     <strong className="text-orange-500 block mb-1">Dica de Especialista:</strong>
                     Carrosséis ilustrativos performam 42% melhor quando a imagem de fundo tem relação direta com a emoção do texto.
@@ -444,5 +450,3 @@ export default function DashboardClient({ user, isPro }: Props) {
     </div>
   );
 }
-
-  
