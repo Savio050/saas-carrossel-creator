@@ -17,7 +17,11 @@ import {
   Download,
   Upload,
   Menu,
-  X
+  X,
+  Settings2,
+  Trash2,
+  PlusCircle,
+  MinusCircle
 } from 'lucide-react';
 
 interface Slide {
@@ -52,8 +56,12 @@ export default function DashboardClient({ user, isPro }: Props) {
   const [error, setError] = useState('');
   const [slideAtual, setSlideAtual] = useState(0);
   
-  // NOVO: Controle do Menu no Celular
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // NOVO: Loading da imagem e Configurações de tipografia
+  const [imgLoading, setImgLoading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [configTexto, setConfigTexto] = useState({ tamanho: 'padrao', espacamento: 'padrao' });
 
   // Perfil
   const [nome, setNome] = useState('');
@@ -68,12 +76,7 @@ export default function DashboardClient({ user, isPro }: Props) {
 
   useEffect(() => {
     const carregarPerfil = async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('nome, arroba, avatar_url, is_verified')
-        .eq('id', user.id)
-        .single();
-      
+      const { data, error } = await supabase.from('users').select('nome, arroba, avatar_url, is_verified').eq('id', user.id).single();
       if (data && !error) {
         setNome(data.nome || '');
         setArroba(data.arroba || '');
@@ -84,27 +87,27 @@ export default function DashboardClient({ user, isPro }: Props) {
     carregarPerfil();
   }, [supabase, user.id]);
 
+  // NOVO: Gatilho de Loading da Imagem sempre que o URL da imagem mudar
+  useEffect(() => {
+    if (carrossel) setImgLoading(true);
+  }, [slideAtual, carrossel]);
+
   const handleUploadGeneric = async (event: React.ChangeEvent<HTMLInputElement>, bucket: string) => {
     try {
       setFazendoUpload(true);
       if (!event.target.files || event.target.files.length === 0) return;
       const file = event.target.files[0];
-      
-      if (file.size > 5 * 1024 * 1024) {
-        return alert('A imagem deve ter no máximo 5MB.');
-      }
+      if (file.size > 5 * 1024 * 1024) return alert('Máximo 5MB.');
 
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-${Math.random()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file);
 
       if (uploadError) throw uploadError;
-
       const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
       return data.publicUrl;
     } catch (error) {
-      alert('Erro ao fazer upload da imagem.');
-      return null;
+      alert('Erro no upload.'); return null;
     } finally {
       setFazendoUpload(false);
     }
@@ -115,49 +118,38 @@ export default function DashboardClient({ user, isPro }: Props) {
     if (url) {
       setAvatarUrl(url);
       await supabase.from('users').update({ avatar_url: url }).eq('id', user.id);
-      alert('Foto de perfil atualizada!');
     }
   };
 
   const handleUploadSlideBg = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = await handleUploadGeneric(e, 'fundo-carrossel');
-    if (url) {
-      updateSlideAtual({ usar_imagem: true, imageUrl: url });
-    }
+    if (url) updateSlideAtual({ usar_imagem: true, imageUrl: url });
   };
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tema.trim()) return;
 
-    setLoading(true);
-    setError('');
-    setCarrossel(null);
-    setSlideAtual(0);
-
+    setLoading(true); setError(''); setCarrossel(null); setSlideAtual(0); setShowSettings(false);
     const endpoint = activeTab === 'ilustrativo' ? '/api/gerar-ilustrativo' : '/api/gerar-carrossel';
 
     try {
       const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tema }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tema }),
       });
-
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao gerar carrossel');
+      if (!res.ok) throw new Error(data.error || 'Erro ao gerar');
       
       data.estilo = activeTab;
       setCarrossel(data);
     } catch (err: any) {
       setError(err.message || 'Erro inesperado');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const getSlideImageUrl = (slide: Slide, carrosselData: Carrossel) => {
-    const imgParam = slide.imageUrl ? encodeURIComponent(slide.imageUrl) : 'null';
+    // CORREÇÃO: Garante que se o usuário clicar em "Remover Fundo", a URL não seja enviada para a API
+    const imgParam = (slide.usar_imagem && slide.imageUrl) ? encodeURIComponent(slide.imageUrl) : 'null';
     const nomeParam = encodeURIComponent(nome || 'Sua Marca');
     const arrobaParam = encodeURIComponent(arroba || '@seu_arroba');
 
@@ -165,8 +157,7 @@ export default function DashboardClient({ user, isPro }: Props) {
       const layoutParam = slide.layout || slide.tipo || 'conteudo_overlay';
       const comParam = encodeURIComponent(carrosselData.palavra_comentario || 'EUQUERO');
       const posParam = slide.posicao_texto || 'centro'; 
-      
-      return `/api/og-ilustrativo?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&marca=${nomeParam}&arroba=${arrobaParam}&layout=${layoutParam}&comentario=${comParam}&posicao=${posParam}`;
+      return `/api/og-ilustrativo?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&marca=${nomeParam}&arroba=${arrobaParam}&layout=${layoutParam}&comentario=${comParam}&posicao=${posParam}&tamanho=${configTexto.tamanho}&espacamento=${configTexto.espacamento}`;
     }
 
     const avatarParam = encodeURIComponent(avatarUrl || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png');
@@ -180,88 +171,73 @@ export default function DashboardClient({ user, isPro }: Props) {
     setCarrossel({ ...carrossel, carrossel: novosSlides });
   };
 
-  // Menu Item agora fecha o menu mobile ao ser clicado
+  // NOVO: Funções de Adicionar e Remover Slide
+  const adicionarSlide = () => {
+    if (!carrossel) return;
+    const novos = [...carrossel.carrossel];
+    novos.splice(slideAtual + 1, 0, { slide: novos.length + 1, texto: 'Novo slide...', usar_imagem: false, termo_pesquisa: '', imageUrl: null, tipo: 'conteudo', layout: 'conteudo_overlay' });
+    setCarrossel({ ...carrossel, numero_de_slides: novos.length, carrossel: novos });
+    setSlideAtual(slideAtual + 1);
+  };
+
+  const removerSlide = () => {
+    if (!carrossel) return;
+    if (carrossel.carrossel.length <= 1) return alert('Você precisa de no mínimo 1 slide.');
+    const confirma = window.confirm('Tem certeza que deseja excluir este slide?');
+    if (!confirma) return;
+    const novos = [...carrossel.carrossel];
+    novos.splice(slideAtual, 1);
+    setCarrossel({ ...carrossel, numero_de_slides: novos.length, carrossel: novos });
+    if (slideAtual >= novos.length) setSlideAtual(novos.length - 1);
+  };
+
   const MenuItem = ({ id, label, icon, disabled = false }: { id: string, label: string, icon: any, disabled?: boolean }) => (
     <button
       onClick={() => {
         if (!disabled) {
-          setActiveTab(id);
-          setIsMobileMenuOpen(false); // Fecha a gaveta no celular
+          setActiveTab(id); setIsMobileMenuOpen(false); setCarrossel(null);
         }
       }}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-        activeTab === id 
-          ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' 
-          : disabled ? 'opacity-40 cursor-not-allowed text-gray-500' : 'text-gray-400 hover:bg-gray-900 hover:text-white'
+        activeTab === id ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : disabled ? 'opacity-40 cursor-not-allowed text-gray-500' : 'text-gray-400 hover:bg-gray-900 hover:text-white'
       }`}
     >
-      {icon}
-      <span className="font-medium">{label}</span>
-      {disabled && <Clock className="w-3 h-3 ml-auto opacity-50" />}
+      {icon} <span className="font-medium">{label}</span> {disabled && <Clock className="w-3 h-3 ml-auto opacity-50" />}
     </button>
   );
 
   return (
     <div className="flex h-screen bg-[#111111] text-gray-100 overflow-hidden font-sans">
       
-      {/* OVERLAY MOBILE: Escurece o fundo quando o menu abre */}
       {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/80 z-40 lg:hidden backdrop-blur-sm"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/80 z-40 lg:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
       )}
 
-      {/* SIDEBAR: Agora é responsiva (Fixed no mobile, Relative no desktop) */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-50 w-72 bg-gray-950 border-r border-gray-900 flex flex-col p-6 transition-transform duration-300 ease-in-out
-        lg:relative lg:translate-x-0
-        ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
-      `}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-gray-950 border-r border-gray-900 flex flex-col p-6 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between mb-10 px-2">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center font-bold text-black">C</div>
             <h1 className="text-xl font-bold tracking-tight">Carrossel<span className="text-orange-500">Creator</span></h1>
           </div>
-          {/* Botão de Fechar apenas no celular */}
-          <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-gray-400 hover:text-white">
-            <X className="w-6 h-6" />
-          </button>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-gray-400 hover:text-white"><X className="w-6 h-6" /></button>
         </div>
 
         <nav className="flex-1 space-y-2 overflow-y-auto">
           <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold mb-4 px-2">Formatos</p>
           <MenuItem id="twitter" label="Twitter Style" icon={<Twitter className="w-5 h-5" />} />
           <MenuItem id="ilustrativo" label="Ilustrativo" icon={<ImageIcon className="w-5 h-5" />} />
-          <MenuItem id="video" label="Vídeo (Breve)" icon={<LayoutDashboard className="w-5 h-5" />} disabled />
-          
           <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold mt-10 mb-4 px-2">Configurações</p>
           <MenuItem id="perfil" label="Minha Conta" icon={<User className="w-5 h-5" />} />
         </nav>
-
-        <button 
-          onClick={() => supabase.auth.signOut().then(() => router.push('/'))}
-          className="mt-6 flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-red-400 transition-colors"
-        >
-          <LogOut className="w-5 h-5" />
-          <span>Sair da conta</span>
-        </button>
       </aside>
 
-      {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto relative bg-[#0a0a0a]">
         
-        {/* HEADER RESPONSIVO */}
         <header className="sticky top-0 z-30 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-gray-900 px-4 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden text-gray-300 hover:text-white bg-gray-900 p-2 rounded-lg border border-gray-800">
-              <Menu className="w-5 h-5" />
-            </button>
-            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest hidden sm:block">
-              Dashboard / {activeTab}
-            </h2>
+            <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden text-gray-300 hover:text-white bg-gray-900 p-2 rounded-lg border border-gray-800"><Menu className="w-5 h-5" /></button>
+            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest hidden sm:block">Dashboard / {activeTab}</h2>
           </div>
-          
           <div className="flex items-center gap-3 lg:gap-4">
             {isPro && <span className="bg-orange-500/10 text-orange-500 text-[10px] font-bold px-3 py-1 rounded-full border border-orange-500/20">PLANO PRO</span>}
             <div className="w-8 h-8 rounded-full bg-gray-800 overflow-hidden border border-gray-700">
@@ -272,56 +248,51 @@ export default function DashboardClient({ user, isPro }: Props) {
 
         <div className="p-4 lg:p-8 max-w-[1600px] mx-auto">
           
-          {/* TELA: PERFIL */}
+          {/* TELA: PERFIL (Ocultado para brevidade se não clicado) */}
           {activeTab === 'perfil' && (
-            <div className="max-w-2xl bg-gray-950 border border-gray-900 rounded-2xl p-6 lg:p-8 space-y-8">
-              <h3 className="text-2xl font-bold">Perfil da Marca</h3>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Nome / Marca</label>
-                  <input value={nome} onChange={e => setNome(e.target.value)} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none transition-all" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase">@ Arroba</label>
-                  <input value={arroba} onChange={e => setArroba(e.target.value)} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none transition-all" />
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-[#111111] rounded-2xl border border-gray-800 text-center sm:text-left">
-                <div className="w-20 h-20 rounded-full bg-gray-800 border-2 border-orange-500 relative overflow-hidden group flex-shrink-0">
-                  {avatarUrl && <img src={avatarUrl} className="w-full h-full object-cover" />}
-                  <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-                    <Upload className="w-5 h-5 text-white" />
-                    <input type="file" className="hidden" onChange={handleUploadAvatar} />
-                  </label>
-                </div>
-                <div>
-                  <h4 className="font-bold">Foto de Perfil</h4>
-                  <p className="text-sm text-gray-500">Usado no estilo Twitter. Recomenda-se 400x400.</p>
-                </div>
-                <div className="sm:ml-auto flex items-center gap-2 mt-4 sm:mt-0">
-                   <input type="checkbox" checked={isVerified} onChange={e => setIsVerified(e.target.checked)} className="w-5 h-5 accent-orange-500" />
-                   <span className="text-sm font-bold">Selo Verificado</span>
-                </div>
-              </div>
-
-              <button 
-                onClick={async () => {
-                  setSalvandoPerfil(true);
-                  await supabase.from('users').update({ nome, arroba, avatar_url: avatarUrl, is_verified: isVerified }).eq('id', user.id);
-                  setSalvandoPerfil(false);
-                  alert('Salvo!');
-                }}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-black font-bold py-4 rounded-xl transition-all disabled:opacity-50"
-                disabled={salvandoPerfil}
-              >
-                {salvandoPerfil ? 'Salvando...' : 'Salvar Alterações'}
-              </button>
-            </div>
+             <div className="max-w-2xl bg-gray-950 border border-gray-900 rounded-2xl p-6 lg:p-8 space-y-8">
+             <h3 className="text-2xl font-bold">Perfil da Marca</h3>
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+               <div className="space-y-2">
+                 <label className="text-xs font-bold text-gray-500 uppercase">Nome / Marca</label>
+                 <input value={nome} onChange={e => setNome(e.target.value)} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none transition-all" />
+               </div>
+               <div className="space-y-2">
+                 <label className="text-xs font-bold text-gray-500 uppercase">@ Arroba</label>
+                 <input value={arroba} onChange={e => setArroba(e.target.value)} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none transition-all" />
+               </div>
+             </div>
+             <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-[#111111] rounded-2xl border border-gray-800 text-center sm:text-left">
+               <div className="w-20 h-20 rounded-full bg-gray-800 border-2 border-orange-500 relative overflow-hidden group flex-shrink-0">
+                 {avatarUrl && <img src={avatarUrl} className="w-full h-full object-cover" />}
+                 <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                   <Upload className="w-5 h-5 text-white" />
+                   <input type="file" className="hidden" onChange={handleUploadAvatar} />
+                 </label>
+               </div>
+               <div>
+                 <h4 className="font-bold">Foto de Perfil</h4>
+                 <p className="text-sm text-gray-500">Usado no estilo Twitter. Recomenda-se 400x400.</p>
+               </div>
+               <div className="sm:ml-auto flex items-center gap-2 mt-4 sm:mt-0">
+                  <input type="checkbox" checked={isVerified} onChange={e => setIsVerified(e.target.checked)} className="w-5 h-5 accent-orange-500" />
+                  <span className="text-sm font-bold">Selo Verificado</span>
+               </div>
+             </div>
+             <button 
+               onClick={async () => {
+                 setSalvandoPerfil(true);
+                 await supabase.from('users').update({ nome, arroba, avatar_url: avatarUrl, is_verified: isVerified }).eq('id', user.id);
+                 setSalvandoPerfil(false); alert('Salvo!');
+               }}
+               className="w-full bg-orange-500 hover:bg-orange-600 text-black font-bold py-4 rounded-xl transition-all disabled:opacity-50"
+             >
+               {salvandoPerfil ? 'Salvando...' : 'Salvar Alterações'}
+             </button>
+           </div>
           )}
 
-          {/* GERADOR */}
+          {/* GERADOR COM ÍCONE SETTINGS */}
           {(activeTab === 'twitter' || activeTab === 'ilustrativo') && !carrossel && (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8 py-10">
               <div className="w-20 h-20 bg-orange-500/10 rounded-3xl flex items-center justify-center text-orange-500 mb-4">
@@ -332,25 +303,58 @@ export default function DashboardClient({ user, isPro }: Props) {
                 <p className="text-gray-500 max-w-md mx-auto">Nossa IA modela o roteiro perfeito e busca imagens de alta qualidade automaticamente.</p>
               </div>
 
-              <form onSubmit={handleGenerate} className="w-full max-w-2xl flex flex-col gap-4 px-4">
-                <div className="relative group">
-                  <input 
-                    value={tema} 
-                    onChange={e => setTema(e.target.value)}
-                    placeholder="Ex: Dicas de produtividade..."
-                    className="w-full bg-gray-950 border border-gray-800 rounded-2xl px-6 py-4 lg:py-5 pr-32 lg:pr-48 text-base lg:text-lg focus:border-orange-500 outline-none transition-all shadow-2xl group-hover:border-gray-700"
-                  />
-                  <button 
-                    disabled={loading}
-                    className="absolute right-2 top-2 bottom-2 lg:right-3 lg:top-3 lg:bottom-3 bg-orange-500 hover:bg-orange-600 text-black px-4 lg:px-8 rounded-xl font-bold transition-all flex items-center gap-2 disabled:opacity-50 text-sm lg:text-base"
-                  >
-                    {loading ? <Zap className="w-4 h-4 lg:w-5 lg:h-5 animate-pulse" /> : <Plus className="w-4 h-4 lg:w-5 lg:h-5" />}
-                    <span className="hidden sm:inline">{loading ? 'Gerando...' : 'Criar Agora'}</span>
-                    <span className="sm:hidden">{loading ? '...' : 'Criar'}</span>
-                  </button>
-                </div>
+              <div className="w-full max-w-3xl flex flex-col gap-4 px-4">
+                <form onSubmit={handleGenerate} className="flex gap-2">
+                  <div className="relative group flex-1">
+                    <input 
+                      value={tema} 
+                      onChange={e => setTema(e.target.value)}
+                      placeholder="Ex: Dicas de produtividade..."
+                      className="w-full bg-gray-950 border border-gray-800 rounded-2xl px-6 py-4 lg:py-5 pr-32 lg:pr-48 text-base lg:text-lg focus:border-orange-500 outline-none transition-all shadow-2xl group-hover:border-gray-700"
+                    />
+                    <button 
+                      type="submit" disabled={loading}
+                      className="absolute right-2 top-2 bottom-2 lg:right-3 lg:top-3 lg:bottom-3 bg-orange-500 hover:bg-orange-600 text-black px-4 lg:px-8 rounded-xl font-bold transition-all flex items-center gap-2 disabled:opacity-50 text-sm lg:text-base"
+                    >
+                      {loading ? <Zap className="w-4 h-4 lg:w-5 lg:h-5 animate-pulse" /> : <Plus className="w-4 h-4 lg:w-5 lg:h-5" />}
+                      <span className="hidden sm:inline">{loading ? 'Gerando...' : 'Criar Agora'}</span>
+                      <span className="sm:hidden">{loading ? '...' : 'Criar'}</span>
+                    </button>
+                  </div>
+                  {activeTab === 'ilustrativo' && (
+                    <button type="button" onClick={() => setShowSettings(!showSettings)} className={`flex-shrink-0 px-4 rounded-2xl border transition-colors flex items-center justify-center ${showSettings ? 'bg-gray-800 border-orange-500 text-orange-500' : 'bg-gray-950 border-gray-800 text-gray-400 hover:border-gray-700'}`}>
+                      <Settings2 className="w-6 h-6" />
+                    </button>
+                  )}
+                </form>
+
+                {/* MODAL CONFIGURAÇÕES DE TEXTO */}
+                {showSettings && activeTab === 'ilustrativo' && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 text-left animate-in fade-in slide-in-from-top-2">
+                    <h4 className="font-bold mb-4 flex items-center gap-2"><Settings2 className="w-4 h-4 text-orange-500"/> Personalizar Tipografia</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase">Tamanho do Texto</label>
+                        <select value={configTexto.tamanho} onChange={e => setConfigTexto({...configTexto, tamanho: e.target.value})} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none">
+                          <option value="pequeno">Pequeno</option>
+                          <option value="padrao">Padrão</option>
+                          <option value="grande">Grande</option>
+                          <option value="gigante">Gigante</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase">Espaçamento das Linhas</label>
+                        <select value={configTexto.espacamento} onChange={e => setConfigTexto({...configTexto, espacamento: e.target.value})} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none">
+                          <option value="apertado">Apertado</option>
+                          <option value="padrao">Padrão</option>
+                          <option value="largo">Largo</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
-              </form>
+              </div>
             </div>
           )}
 
@@ -358,7 +362,7 @@ export default function DashboardClient({ user, isPro }: Props) {
           {carrossel && (activeTab === 'twitter' || activeTab === 'ilustrativo') && (
             <div className="flex flex-col xl:flex-row gap-6 lg:gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
               
-              {/* Lado Esquerdo: Preview Gigante */}
+              {/* Lado Esquerdo: Preview */}
               <div className="flex-1 w-full space-y-4 lg:space-y-6">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-2">
                   <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
@@ -367,35 +371,54 @@ export default function DashboardClient({ user, isPro }: Props) {
                     <button onClick={() => setSlideAtual(prev => Math.min(carrossel.carrossel.length - 1, prev + 1))} className="p-3 bg-gray-900 hover:bg-gray-800 rounded-full border border-gray-800 disabled:opacity-20 flex-shrink-0" disabled={slideAtual === carrossel.carrossel.length - 1}><ChevronRight className="w-5 h-5" /></button>
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
-                    <button onClick={() => setCarrossel(null)} className="flex-1 sm:flex-none px-4 py-3 sm:py-2 text-xs font-bold text-gray-400 bg-gray-900 sm:bg-transparent rounded-lg hover:text-white transition-colors">DESCARTAR</button>
+                    <button onClick={() => setCarrossel(null)} className="flex-1 sm:flex-none px-4 py-3 sm:py-2 text-xs font-bold text-red-400 bg-red-950/30 border border-red-900/50 hover:bg-red-900/50 rounded-lg transition-colors flex items-center justify-center gap-2">
+                      <Trash2 className="w-4 h-4"/> EXCLUIR CARROSSEL
+                    </button>
                     <button 
                       onClick={() => {
                         carrossel.carrossel.forEach(async (s, i) => {
-                          const res = await fetch(getSlideImageUrl(s, carrossel));
-                          const blob = await res.blob();
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a'); a.href = url; a.download = `slide-${i+1}.png`; a.click();
+                          const res = await fetch(getSlideImageUrl(s, carrossel)); const blob = await res.blob();
+                          const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `slide-${i+1}.png`; a.click();
                         });
                       }}
-                      className="flex-1 sm:flex-none justify-center bg-white text-black px-4 sm:px-6 py-3 sm:py-2 rounded-lg text-xs font-black flex items-center gap-2"
+                      className="flex-1 sm:flex-none justify-center bg-white text-black px-4 sm:px-6 py-3 sm:py-2 rounded-lg text-xs font-black flex items-center gap-2 hover:bg-gray-200"
                     >
                       <Download className="w-4 h-4" /> <span className="hidden sm:inline">BAIXAR TODOS</span>
                     </button>
                   </div>
                 </div>
 
+                {/* NOVO: Imagem com Skeleton de Loading */}
                 <div className="aspect-square w-full max-w-[700px] mx-auto bg-gray-950 rounded-[20px] lg:rounded-[40px] border border-gray-900 shadow-2xl overflow-hidden relative group">
-                   <img 
+                  {imgLoading && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-gray-950/90 backdrop-blur-sm">
+                      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                      <p className="text-gray-400 font-bold text-xs uppercase tracking-widest animate-pulse">Renderizando HQ...</p>
+                    </div>
+                  )}
+                  <img 
                     src={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} 
-                    className="w-full h-full object-contain pointer-events-none" 
-                    key={`${slideAtual}-${activeTab}-${carrossel.carrossel[slideAtual].posicao_texto}`}
+                    className={`w-full h-full object-contain pointer-events-none transition-opacity duration-300 ${imgLoading ? 'opacity-0' : 'opacity-100'}`} 
+                    onLoad={() => setImgLoading(false)}
+                    key={`${slideAtual}-${activeTab}-${carrossel.carrossel[slideAtual].posicao_texto}-${carrossel.carrossel[slideAtual].usar_imagem}`}
                   />
                   <div className="absolute inset-0 border-[8px] lg:border-[16px] border-black/5 rounded-[20px] lg:rounded-[40px] pointer-events-none" />
                 </div>
               </div>
 
               {/* Lado Direito: Controles */}
-              <div className="w-full xl:w-[450px] space-y-6">
+              <div className="w-full xl:w-[450px] space-y-4 lg:space-y-6">
+                
+                {/* NOVO: Ações do Card */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={adicionarSlide} className="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
+                    <PlusCircle className="w-4 h-4" /> NOVO SLIDE AQUI
+                  </button>
+                  <button onClick={removerSlide} className="bg-red-950/20 hover:bg-red-900/40 border border-red-900/30 text-red-400 font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
+                    <MinusCircle className="w-4 h-4" /> REMOVER SLIDE
+                  </button>
+                </div>
+
                 <div className="bg-gray-950 border border-gray-900 rounded-3xl p-6 lg:p-8 space-y-6 shadow-xl">
                   <div className="flex items-center gap-3 mb-2 lg:mb-4">
                     <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
@@ -417,17 +440,7 @@ export default function DashboardClient({ user, isPro }: Props) {
                         <label className="text-[10px] font-black text-gray-600 uppercase">Alinhamento do Texto</label>
                         <div className="grid grid-cols-3 gap-2">
                           {['topo', 'centro', 'rodape'].map((pos) => (
-                            <button
-                              key={pos}
-                              onClick={() => updateSlideAtual({ posicao_texto: pos })}
-                              className={`py-2 px-2 lg:px-3 rounded-lg text-[10px] font-bold uppercase transition-all ${
-                                (carrossel.carrossel[slideAtual].posicao_texto || 'centro') === pos
-                                  ? 'bg-orange-500 text-black'
-                                  : 'bg-[#111111] border border-gray-800 text-gray-400 hover:border-gray-700 hover:text-white'
-                              }`}
-                            >
-                              {pos}
-                            </button>
+                            <button key={pos} onClick={() => updateSlideAtual({ posicao_texto: pos })} className={`py-2 px-2 lg:px-3 rounded-lg text-[10px] font-bold uppercase transition-all ${(carrossel.carrossel[slideAtual].posicao_texto || 'centro') === pos ? 'bg-orange-500 text-black' : 'bg-[#111111] border border-gray-800 text-gray-400 hover:border-gray-700 hover:text-white'}`}>{pos}</button>
                           ))}
                         </div>
                       </div>
@@ -436,11 +449,7 @@ export default function DashboardClient({ user, isPro }: Props) {
                     {carrossel.estilo === 'ilustrativo' && carrossel.carrossel[slideAtual].tipo === 'cta' && (
                        <div className="space-y-2 pt-2">
                         <label className="text-[10px] font-black text-gray-600 uppercase">Palavra do Comentário</label>
-                        <input 
-                          value={carrossel.palavra_comentario || ''}
-                          onChange={e => setCarrossel({...carrossel, palavra_comentario: e.target.value.toUpperCase()})}
-                          className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none"
-                        />
+                        <input value={carrossel.palavra_comentario || ''} onChange={e => setCarrossel({...carrossel, palavra_comentario: e.target.value.toUpperCase()})} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none" />
                       </div>
                     )}
 
@@ -459,23 +468,12 @@ export default function DashboardClient({ user, isPro }: Props) {
                       </button>
                     </div>
 
-                    <a 
-                      href={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} 
-                      download={`slide-${slideAtual+1}.png`}
-                      className="w-full block text-center bg-orange-500 hover:bg-orange-600 text-black font-black py-4 rounded-xl transition-all shadow-lg shadow-orange-500/20 mt-2"
-                    >
+                    <a href={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} download={`slide-${slideAtual+1}.png`} className="w-full block text-center bg-orange-500 hover:bg-orange-600 text-black font-black py-4 rounded-xl transition-all shadow-lg shadow-orange-500/20 mt-2">
                       BAIXAR ESTE SLIDE
                     </a>
                   </div>
                 </div>
 
-                <div className="p-5 lg:p-6 bg-orange-500/5 border border-orange-500/10 rounded-2xl flex items-start gap-4">
-                  <Zap className="w-5 h-5 lg:w-6 lg:h-6 text-orange-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-gray-400 leading-relaxed">
-                    <strong className="text-orange-500 block mb-1">Dica de Especialista:</strong>
-                    Carrosséis ilustrativos performam 42% melhor quando a imagem de fundo tem relação direta com a emoção do texto.
-                  </p>
-                </div>
               </div>
 
             </div>
