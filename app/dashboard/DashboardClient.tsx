@@ -89,7 +89,7 @@ export default function DashboardClient({ user, isPro }: Props) {
       formData.append('image', file);
 
       // Pega a sua chave segura lá da Vercel
-      const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+      const apiKey = process.env.d08afd1a36de9640074b348b1820cfbd;
       
       if (!apiKey) {
         alert('Chave do ImgBB não configurada na Vercel!');
