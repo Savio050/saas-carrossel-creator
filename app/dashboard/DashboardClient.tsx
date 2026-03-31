@@ -85,7 +85,7 @@ export default function DashboardClient({ user, isPro }: Props) {
       if (file.size > 5 * 1024 * 1024) return alert('Máximo 5MB.');
 
       // 1. COLE SUA CHAVE DO IMGBB AQUI DENTRO DAS ASPAS
-      const apiKey = "COLE_SUA_CHAVE_AQUI"; 
+      const apiKey = "d08afd1a36de9640074b348b1820cfbd"; 
       
       if (apiKey === "COLE_SUA_CHAVE_AQUI") {
         alert('Você esqueceu de colar a chave no código, Sávio!');
