@@ -6,29 +6,10 @@ async function searchImage(query: string): Promise<string | null> {
     const res = await fetch('https://google.serper.dev/images', {
       method: 'POST',
       headers: { 'X-API-KEY': process.env.SERPER_API_KEY!, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ q: query, num: 5 }), // Pedimos os 5 melhores resultados
+      body: JSON.stringify({ q: query, num: 3 }),
     });
     const data = await res.json();
-
-    if (!data.images || data.images.length === 0) return null;
-
-    // FILTRO LEVE: Remove apenas o que TEMOS CERTEZA que trava o Satori
-    const imagemRelevante = data.images.find((img: any) => {
-      if (!img.imageUrl) return false;
-      const url = img.imageUrl.toLowerCase();
-      
-      // Bloqueia apenas formatos modernos incompatíveis
-      const isFormatoProibido = url.includes('.webp') || url.includes('.svg');
-      
-      // Bloqueia sites que têm firewalls rígidos contra robôs (hotlink)
-      const isSiteProibido = url.includes('wikimedia') || url.includes('wikipedia') || url.includes('fbsbx') || url.includes('lookaside');
-
-      return !isFormatoProibido && !isSiteProibido;
-    });
-
-    // Se achou uma que não é proibida, usa ela (normalmente a 1ª ou 2ª mais relevante).
-    // Se der qualquer erro na hora de gerar o card, o `onError` do nosso frontend desativa a imagem silenciosamente.
-    return imagemRelevante ? imagemRelevante.imageUrl : data.images[0]?.imageUrl ?? null;
+    return data.images?.[0]?.imageUrl ?? null;
   } catch { 
     return null; 
   }
