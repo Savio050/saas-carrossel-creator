@@ -76,6 +76,7 @@ export default function DashboardClient({ user, isPro }: Props) {
   };
 
   // NOVO MOTOR DE UPLOAD: API EXTERNA (ImgBB) - ZERO CUSTO DE SUPABASE
+ // NOVO MOTOR DE UPLOAD: API EXTERNA (ImgBB) - TESTE DIRETO
   const handleUploadGeneric = async (event: React.ChangeEvent<HTMLInputElement>, bucket: string) => {
     try {
       setFazendoUpload(true);
@@ -84,23 +85,47 @@ export default function DashboardClient({ user, isPro }: Props) {
       const file = event.target.files[0];
       if (file.size > 5 * 1024 * 1024) return alert('Máximo 5MB.');
 
-      // Monta o "pacote" invisível para mandar para o Drive Online
-      const formData = new FormData();
-      formData.append('image', file);
-
-      // Pega a sua chave segura lá da Vercel
-      const apiKey = process.env.d08afd1a36de9640074b348b1820cfbd;
+      // 1. COLE SUA CHAVE DO IMGBB AQUI DENTRO DAS ASPAS
+      const apiKey = "d08afd1a36de9640074b348b1820cfbd"; 
       
-      if (!apiKey) {
-        alert('Chave do ImgBB não configurada na Vercel!');
+      if (apiKey === "COLE_SUA_CHAVE_AQUI") {
+        alert('Você esqueceu de colar a chave no código, Sávio!');
         return null;
       }
 
-      // Dispara a imagem para o servidor do ImgBB
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+      // 2. Monta o pacote de dados exatamente como a documentação pede
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('key', apiKey); // Chave enviada de forma segura no corpo
+
+      // 3. Envia para o servidor deles
+      const res = await fetch('https://api.imgbb.com/1/upload', {
         method: 'POST',
         body: formData,
       });
+
+      const data = await res.json();
+
+      if (data.success) {
+        // Sucesso! O ImgBB devolve o link da imagem pronta para o nosso Satori ler
+        return data.data.url; 
+      } else {
+        console.error("Erro detalhado do ImgBB:", data);
+        alert('O ImgBB recusou a imagem. Erro: ' + (data.error?.message || 'Desconhecido'));
+        return null;
+      }
+
+    } catch (error) { 
+      console.error(error);
+      alert('Erro na comunicação com o ImgBB.'); 
+      return null; 
+    } finally { 
+      setFazendoUpload(false); 
+      // Limpa o input para permitir enviar a mesma foto de novo se precisar
+      event.target.value = ''; 
+    }
+  };
+      
 
       const data = await res.json();
 
