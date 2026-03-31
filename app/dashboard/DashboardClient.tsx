@@ -75,7 +75,6 @@ export default function DashboardClient({ user, isPro }: Props) {
     setShowSettings(false);
   };
 
-  // NOVO MOTOR DE UPLOAD: API EXTERNA (ImgBB) - ZERO CUSTO DE SUPABASE
  // NOVO MOTOR DE UPLOAD: API EXTERNA (ImgBB) - TESTE DIRETO
   const handleUploadGeneric = async (event: React.ChangeEvent<HTMLInputElement>, bucket: string) => {
     try {
@@ -86,7 +85,7 @@ export default function DashboardClient({ user, isPro }: Props) {
       if (file.size > 5 * 1024 * 1024) return alert('Máximo 5MB.');
 
       // 1. COLE SUA CHAVE DO IMGBB AQUI DENTRO DAS ASPAS
-      const apiKey = "d08afd1a36de9640074b348b1820cfbd"; 
+      const apiKey = "COLE_SUA_CHAVE_AQUI"; 
       
       if (apiKey === "COLE_SUA_CHAVE_AQUI") {
         alert('Você esqueceu de colar a chave no código, Sávio!');
@@ -104,6 +103,27 @@ export default function DashboardClient({ user, isPro }: Props) {
         body: formData,
       });
 
+      const data = await res.json();
+
+      if (data.success) {
+        // Sucesso! O ImgBB devolve o link da imagem pronta para o nosso Satori ler
+        return data.data.url; 
+      } else {
+        console.error("Erro detalhado do ImgBB:", data);
+        alert('O ImgBB recusou a imagem. Erro: ' + (data.error?.message || 'Desconhecido'));
+        return null;
+      }
+
+    } catch (error) { 
+      console.error(error);
+      alert('Erro na comunicação com o ImgBB.'); 
+      return null; 
+    } finally { 
+      setFazendoUpload(false); 
+      // Limpa o input para permitir enviar a mesma foto de novo se precisar
+      event.target.value = ''; 
+    }
+  };
       const data = await res.json();
 
       if (data.success) {
