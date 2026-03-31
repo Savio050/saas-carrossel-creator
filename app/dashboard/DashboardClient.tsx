@@ -4,49 +4,25 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { 
-  LayoutDashboard, 
-  Twitter, 
-  Image as ImageIcon, 
-  User, 
-  LogOut, 
-  Zap, 
-  Clock, 
-  Plus, 
-  ChevronLeft, 
-  ChevronRight, 
-  Download,
-  Upload,
-  Menu,
-  X,
-  Settings2,
-  Trash2,
-  PlusCircle,
-  MinusCircle
+  LayoutDashboard, Twitter, Image as ImageIcon, User, LogOut, Zap, Clock, Plus, 
+  ChevronLeft, ChevronRight, Download, Upload, Menu, X, Settings2, Trash2, PlusCircle, MinusCircle, Save
 } from 'lucide-react';
 
 interface Slide {
-  slide: number;
-  texto: string;
-  usar_imagem: boolean;
-  termo_pesquisa: string;
-  imageUrl?: string | null;
-  tipo?: string; 
-  layout?: string; 
-  posicao_texto?: string; 
+  slide: number; texto: string; usar_imagem: boolean; termo_pesquisa: string;
+  imageUrl?: string | null; tipo?: string; layout?: string; posicao_texto?: string; 
 }
 
 interface Carrossel {
-  tema_principal: string;
-  numero_de_slides: number;
-  carrossel: Slide[];
-  estilo?: string; 
-  palavra_comentario?: string;
+  tema_principal: string; numero_de_slides: number; carrossel: Slide[];
+  estilo?: string; palavra_comentario?: string;
 }
 
-interface Props {
-  user: { email: string; id: string };
-  isPro: boolean;
-}
+interface Props { user: { email: string; id: string }; isPro: boolean; }
+
+const FONTES_DISPONEIS = [
+  'Montserrat', 'Open Sans', 'Nunito Sans', 'League Spartan', 'Kalam', 'Poppins', 'Anton', 'Bebas Neue'
+];
 
 export default function DashboardClient({ user, isPro }: Props) {
   const [activeTab, setActiveTab] = useState('twitter');
@@ -55,13 +31,16 @@ export default function DashboardClient({ user, isPro }: Props) {
   const [carrossel, setCarrossel] = useState<Carrossel | null>(null);
   const [error, setError] = useState('');
   const [slideAtual, setSlideAtual] = useState(0);
-  
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // NOVO: Loading da imagem e Configurações de tipografia
   const [imgLoading, setImgLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [configTexto, setConfigTexto] = useState({ tamanho: 'padrao', espacamento: 'padrao' });
+
+  // NOVO: Estado Avançado de Configuração (Capa, Cards, CTA)
+  const [config, setConfig] = useState({
+    capa: { fonte: 'Montserrat', tamanho: 'gigante' },
+    cards: { fonte: 'Open Sans', tamanho: 'padrao' },
+    cta: { fonte: 'League Spartan', tamanho: 'grande' }
+  });
 
   // Perfil
   const [nome, setNome] = useState('');
@@ -74,23 +53,27 @@ export default function DashboardClient({ user, isPro }: Props) {
   const router = useRouter();
   const supabase = createClient();
 
+  // Carrega Perfil do BD e Configurações Salvas do Navegador
   useEffect(() => {
-    const carregarPerfil = async () => {
-      const { data, error } = await supabase.from('users').select('nome, arroba, avatar_url, is_verified').eq('id', user.id).single();
-      if (data && !error) {
-        setNome(data.nome || '');
-        setArroba(data.arroba || '');
-        setAvatarUrl(data.avatar_url || '');
-        setIsVerified(data.is_verified || false);
+    const carregarTudo = async () => {
+      const { data } = await supabase.from('users').select('nome, arroba, avatar_url, is_verified').eq('id', user.id).single();
+      if (data) {
+        setNome(data.nome || ''); setArroba(data.arroba || '');
+        setAvatarUrl(data.avatar_url || ''); setIsVerified(data.is_verified || false);
       }
+      const savedConfig = localStorage.getItem('configIlustrativo');
+      if (savedConfig) setConfig(JSON.parse(savedConfig));
     };
-    carregarPerfil();
+    carregarTudo();
   }, [supabase, user.id]);
 
-  // NOVO: Gatilho de Loading da Imagem sempre que o URL da imagem mudar
-  useEffect(() => {
-    if (carrossel) setImgLoading(true);
-  }, [slideAtual, carrossel]);
+  useEffect(() => { if (carrossel) setImgLoading(true); }, [slideAtual, carrossel, config]);
+
+  const salvarConfiguracoes = () => {
+    localStorage.setItem('configIlustrativo', JSON.stringify(config));
+    alert('Predefinições salvas para os próximos carrosséis!');
+    setShowSettings(false);
+  };
 
   const handleUploadGeneric = async (event: React.ChangeEvent<HTMLInputElement>, bucket: string) => {
     try {
@@ -106,19 +89,12 @@ export default function DashboardClient({ user, isPro }: Props) {
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
       return data.publicUrl;
-    } catch (error) {
-      alert('Erro no upload.'); return null;
-    } finally {
-      setFazendoUpload(false);
-    }
+    } catch (error) { alert('Erro no upload.'); return null; } finally { setFazendoUpload(false); }
   };
 
   const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = await handleUploadGeneric(e, 'avatars');
-    if (url) {
-      setAvatarUrl(url);
-      await supabase.from('users').update({ avatar_url: url }).eq('id', user.id);
-    }
+    if (url) { setAvatarUrl(url); await supabase.from('users').update({ avatar_url: url }).eq('id', user.id); }
   };
 
   const handleUploadSlideBg = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,26 +105,18 @@ export default function DashboardClient({ user, isPro }: Props) {
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tema.trim()) return;
-
     setLoading(true); setError(''); setCarrossel(null); setSlideAtual(0); setShowSettings(false);
+    
     const endpoint = activeTab === 'ilustrativo' ? '/api/gerar-ilustrativo' : '/api/gerar-carrossel';
-
     try {
-      const res = await fetch(endpoint, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tema }),
-      });
+      const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tema }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao gerar');
-      
-      data.estilo = activeTab;
-      setCarrossel(data);
-    } catch (err: any) {
-      setError(err.message || 'Erro inesperado');
-    } finally { setLoading(false); }
+      data.estilo = activeTab; setCarrossel(data);
+    } catch (err: any) { setError(err.message || 'Erro inesperado'); } finally { setLoading(false); }
   };
 
   const getSlideImageUrl = (slide: Slide, carrosselData: Carrossel) => {
-    // CORREÇÃO: Garante que se o usuário clicar em "Remover Fundo", a URL não seja enviada para a API
     const imgParam = (slide.usar_imagem && slide.imageUrl) ? encodeURIComponent(slide.imageUrl) : 'null';
     const nomeParam = encodeURIComponent(nome || 'Sua Marca');
     const arrobaParam = encodeURIComponent(arroba || '@seu_arroba');
@@ -157,7 +125,18 @@ export default function DashboardClient({ user, isPro }: Props) {
       const layoutParam = slide.layout || slide.tipo || 'conteudo_overlay';
       const comParam = encodeURIComponent(carrosselData.palavra_comentario || 'EUQUERO');
       const posParam = slide.posicao_texto || 'centro'; 
-      return `/api/og-ilustrativo?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&marca=${nomeParam}&arroba=${arrobaParam}&layout=${layoutParam}&comentario=${comParam}&posicao=${posParam}&tamanho=${configTexto.tamanho}&espacamento=${configTexto.espacamento}`;
+      
+      // Inteligência para aplicar a fonte correta dependendo do slide
+      let fontParam = config.cards.fonte;
+      let sizeParam = config.cards.tamanho;
+      
+      if (layoutParam === 'capa' || slide.tipo === 'capa') {
+        fontParam = config.capa.fonte; sizeParam = config.capa.tamanho;
+      } else if (layoutParam.includes('cta') || slide.tipo === 'cta') {
+        fontParam = config.cta.fonte; sizeParam = config.cta.tamanho;
+      }
+
+      return `/api/og-ilustrativo?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&marca=${nomeParam}&arroba=${arrobaParam}&layout=${layoutParam}&comentario=${comParam}&posicao=${posParam}&fonte=${encodeURIComponent(fontParam)}&tamanho=${sizeParam}`;
     }
 
     const avatarParam = encodeURIComponent(avatarUrl || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png');
@@ -171,20 +150,17 @@ export default function DashboardClient({ user, isPro }: Props) {
     setCarrossel({ ...carrossel, carrossel: novosSlides });
   };
 
-  // NOVO: Funções de Adicionar e Remover Slide
   const adicionarSlide = () => {
     if (!carrossel) return;
     const novos = [...carrossel.carrossel];
     novos.splice(slideAtual + 1, 0, { slide: novos.length + 1, texto: 'Novo slide...', usar_imagem: false, termo_pesquisa: '', imageUrl: null, tipo: 'conteudo', layout: 'conteudo_overlay' });
-    setCarrossel({ ...carrossel, numero_de_slides: novos.length, carrossel: novos });
-    setSlideAtual(slideAtual + 1);
+    setCarrossel({ ...carrossel, numero_de_slides: novos.length, carrossel: novos }); setSlideAtual(slideAtual + 1);
   };
 
   const removerSlide = () => {
     if (!carrossel) return;
     if (carrossel.carrossel.length <= 1) return alert('Você precisa de no mínimo 1 slide.');
-    const confirma = window.confirm('Tem certeza que deseja excluir este slide?');
-    if (!confirma) return;
+    if (!window.confirm('Tem certeza que deseja excluir este slide?')) return;
     const novos = [...carrossel.carrossel];
     novos.splice(slideAtual, 1);
     setCarrossel({ ...carrossel, numero_de_slides: novos.length, carrossel: novos });
@@ -192,26 +168,80 @@ export default function DashboardClient({ user, isPro }: Props) {
   };
 
   const MenuItem = ({ id, label, icon, disabled = false }: { id: string, label: string, icon: any, disabled?: boolean }) => (
-    <button
-      onClick={() => {
-        if (!disabled) {
-          setActiveTab(id); setIsMobileMenuOpen(false); setCarrossel(null);
-        }
-      }}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-        activeTab === id ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : disabled ? 'opacity-40 cursor-not-allowed text-gray-500' : 'text-gray-400 hover:bg-gray-900 hover:text-white'
-      }`}
-    >
+    <button onClick={() => { if (!disabled) { setActiveTab(id); setIsMobileMenuOpen(false); setCarrossel(null); setShowSettings(false); } }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === id ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : disabled ? 'opacity-40 cursor-not-allowed text-gray-500' : 'text-gray-400 hover:bg-gray-900 hover:text-white'}`}>
       {icon} <span className="font-medium">{label}</span> {disabled && <Clock className="w-3 h-3 ml-auto opacity-50" />}
     </button>
+  );
+
+  // Componente Reutilizável de Configuração (Para usar no Modal e no Perfil)
+  const ConfigPanel = () => (
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 lg:p-8 space-y-6">
+      <div className="flex items-center justify-between border-b border-gray-800 pb-4">
+        <h4 className="font-bold text-lg flex items-center gap-2"><Settings2 className="w-5 h-5 text-orange-500"/> Predefinições de Tipografia</h4>
+        <button onClick={salvarConfiguracoes} className="bg-white hover:bg-gray-200 text-black px-4 py-2 rounded-lg text-xs font-black flex items-center gap-2 transition-colors">
+          <Save className="w-4 h-4" /> SALVAR PADRÃO
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* BLOCO CAPA */}
+        <div className="bg-[#111] border border-gray-800 p-4 rounded-xl space-y-4">
+          <h5 className="font-bold text-orange-500 text-sm uppercase tracking-wider text-center border-b border-gray-800 pb-2">🖼️ Capa</h5>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-500 uppercase">Fonte</label>
+            <select value={config.capa.fonte} onChange={e => setConfig({ ...config, capa: { ...config.capa, fonte: e.target.value }})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 outline-none">
+              {FONTES_DISPONEIS.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-500 uppercase">Tamanho</label>
+            <select value={config.capa.tamanho} onChange={e => setConfig({ ...config, capa: { ...config.capa, tamanho: e.target.value }})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 outline-none">
+              <option value="padrao">Padrão</option><option value="grande">Grande</option><option value="gigante">Gigante</option>
+            </select>
+          </div>
+        </div>
+
+        {/* BLOCO CARDS */}
+        <div className="bg-[#111] border border-gray-800 p-4 rounded-xl space-y-4">
+          <h5 className="font-bold text-orange-500 text-sm uppercase tracking-wider text-center border-b border-gray-800 pb-2">📄 Cards</h5>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-500 uppercase">Fonte</label>
+            <select value={config.cards.fonte} onChange={e => setConfig({ ...config, cards: { ...config.cards, fonte: e.target.value }})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 outline-none">
+              {FONTES_DISPONEIS.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-500 uppercase">Tamanho</label>
+            <select value={config.cards.tamanho} onChange={e => setConfig({ ...config, cards: { ...config.cards, tamanho: e.target.value }})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 outline-none">
+              <option value="pequeno">Pequeno</option><option value="padrao">Padrão</option><option value="grande">Grande</option>
+            </select>
+          </div>
+        </div>
+
+        {/* BLOCO CTA */}
+        <div className="bg-[#111] border border-gray-800 p-4 rounded-xl space-y-4">
+          <h5 className="font-bold text-orange-500 text-sm uppercase tracking-wider text-center border-b border-gray-800 pb-2">🎯 CTA</h5>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-500 uppercase">Fonte</label>
+            <select value={config.cta.fonte} onChange={e => setConfig({ ...config, cta: { ...config.cta, fonte: e.target.value }})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 outline-none">
+              {FONTES_DISPONEIS.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-500 uppercase">Tamanho</label>
+            <select value={config.cta.tamanho} onChange={e => setConfig({ ...config, cta: { ...config.cta, tamanho: e.target.value }})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 outline-none">
+               <option value="pequeno">Pequeno</option><option value="padrao">Padrão</option><option value="grande">Grande</option><option value="gigante">Gigante</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 
   return (
     <div className="flex h-screen bg-[#111111] text-gray-100 overflow-hidden font-sans">
       
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/80 z-40 lg:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
-      )}
+      {isMobileMenuOpen && ( <div className="fixed inset-0 bg-black/80 z-40 lg:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} /> )}
 
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-gray-950 border-r border-gray-900 flex flex-col p-6 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between mb-10 px-2">
@@ -248,51 +278,58 @@ export default function DashboardClient({ user, isPro }: Props) {
 
         <div className="p-4 lg:p-8 max-w-[1600px] mx-auto">
           
-          {/* TELA: PERFIL (Ocultado para brevidade se não clicado) */}
+          {/* TELA: PERFIL */}
           {activeTab === 'perfil' && (
-             <div className="max-w-2xl bg-gray-950 border border-gray-900 rounded-2xl p-6 lg:p-8 space-y-8">
-             <h3 className="text-2xl font-bold">Perfil da Marca</h3>
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-               <div className="space-y-2">
-                 <label className="text-xs font-bold text-gray-500 uppercase">Nome / Marca</label>
-                 <input value={nome} onChange={e => setNome(e.target.value)} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none transition-all" />
-               </div>
-               <div className="space-y-2">
-                 <label className="text-xs font-bold text-gray-500 uppercase">@ Arroba</label>
-                 <input value={arroba} onChange={e => setArroba(e.target.value)} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none transition-all" />
-               </div>
-             </div>
-             <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-[#111111] rounded-2xl border border-gray-800 text-center sm:text-left">
-               <div className="w-20 h-20 rounded-full bg-gray-800 border-2 border-orange-500 relative overflow-hidden group flex-shrink-0">
-                 {avatarUrl && <img src={avatarUrl} className="w-full h-full object-cover" />}
-                 <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-                   <Upload className="w-5 h-5 text-white" />
-                   <input type="file" className="hidden" onChange={handleUploadAvatar} />
-                 </label>
-               </div>
-               <div>
-                 <h4 className="font-bold">Foto de Perfil</h4>
-                 <p className="text-sm text-gray-500">Usado no estilo Twitter. Recomenda-se 400x400.</p>
-               </div>
-               <div className="sm:ml-auto flex items-center gap-2 mt-4 sm:mt-0">
-                  <input type="checkbox" checked={isVerified} onChange={e => setIsVerified(e.target.checked)} className="w-5 h-5 accent-orange-500" />
-                  <span className="text-sm font-bold">Selo Verificado</span>
-               </div>
-             </div>
-             <button 
-               onClick={async () => {
-                 setSalvandoPerfil(true);
-                 await supabase.from('users').update({ nome, arroba, avatar_url: avatarUrl, is_verified: isVerified }).eq('id', user.id);
-                 setSalvandoPerfil(false); alert('Salvo!');
-               }}
-               className="w-full bg-orange-500 hover:bg-orange-600 text-black font-bold py-4 rounded-xl transition-all disabled:opacity-50"
-             >
-               {salvandoPerfil ? 'Salvando...' : 'Salvar Alterações'}
-             </button>
-           </div>
+            <div className="space-y-8">
+              <div className="max-w-4xl bg-gray-950 border border-gray-900 rounded-2xl p-6 lg:p-8 space-y-8">
+                <h3 className="text-2xl font-bold">Perfil da Marca</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase">Nome / Marca</label>
+                    <input value={nome} onChange={e => setNome(e.target.value)} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none transition-all" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase">@ Arroba</label>
+                    <input value={arroba} onChange={e => setArroba(e.target.value)} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none transition-all" />
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-[#111111] rounded-2xl border border-gray-800 text-center sm:text-left">
+                  <div className="w-20 h-20 rounded-full bg-gray-800 border-2 border-orange-500 relative overflow-hidden group flex-shrink-0">
+                    {avatarUrl && <img src={avatarUrl} className="w-full h-full object-cover" />}
+                    <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                      <Upload className="w-5 h-5 text-white" />
+                      <input type="file" className="hidden" onChange={handleUploadAvatar} />
+                    </label>
+                  </div>
+                  <div>
+                    <h4 className="font-bold">Foto de Perfil</h4>
+                    <p className="text-sm text-gray-500">Usado no estilo Twitter. Recomenda-se 400x400.</p>
+                  </div>
+                  <div className="sm:ml-auto flex items-center gap-2 mt-4 sm:mt-0">
+                     <input type="checkbox" checked={isVerified} onChange={e => setIsVerified(e.target.checked)} className="w-5 h-5 accent-orange-500" />
+                     <span className="text-sm font-bold">Selo Verificado</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={async () => {
+                    setSalvandoPerfil(true);
+                    await supabase.from('users').update({ nome, arroba, avatar_url: avatarUrl, is_verified: isVerified }).eq('id', user.id);
+                    setSalvandoPerfil(false); alert('Perfil Salvo!');
+                  }}
+                  className="bg-orange-500 hover:bg-orange-600 text-black font-bold px-8 py-4 rounded-xl transition-all disabled:opacity-50"
+                >
+                  {salvandoPerfil ? 'Salvando...' : 'Salvar Perfil'}
+                </button>
+              </div>
+
+              {/* Seção de Tipografia direto no Perfil */}
+              <div className="max-w-4xl">
+                 <ConfigPanel />
+              </div>
+            </div>
           )}
 
-          {/* GERADOR COM ÍCONE SETTINGS */}
+          {/* GERADOR */}
           {(activeTab === 'twitter' || activeTab === 'ilustrativo') && !carrossel && (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8 py-10">
               <div className="w-20 h-20 bg-orange-500/10 rounded-3xl flex items-center justify-center text-orange-500 mb-4">
@@ -328,29 +365,9 @@ export default function DashboardClient({ user, isPro }: Props) {
                   )}
                 </form>
 
-                {/* MODAL CONFIGURAÇÕES DE TEXTO */}
                 {showSettings && activeTab === 'ilustrativo' && (
-                  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 text-left animate-in fade-in slide-in-from-top-2">
-                    <h4 className="font-bold mb-4 flex items-center gap-2"><Settings2 className="w-4 h-4 text-orange-500"/> Personalizar Tipografia</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-500 uppercase">Tamanho do Texto</label>
-                        <select value={configTexto.tamanho} onChange={e => setConfigTexto({...configTexto, tamanho: e.target.value})} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none">
-                          <option value="pequeno">Pequeno</option>
-                          <option value="padrao">Padrão</option>
-                          <option value="grande">Grande</option>
-                          <option value="gigante">Gigante</option>
-                        </select>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-500 uppercase">Espaçamento das Linhas</label>
-                        <select value={configTexto.espacamento} onChange={e => setConfigTexto({...configTexto, espacamento: e.target.value})} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none">
-                          <option value="apertado">Apertado</option>
-                          <option value="padrao">Padrão</option>
-                          <option value="largo">Largo</option>
-                        </select>
-                      </div>
-                    </div>
+                  <div className="animate-in fade-in slide-in-from-top-2 text-left mt-4">
+                    <ConfigPanel />
                   </div>
                 )}
                 {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
@@ -362,7 +379,6 @@ export default function DashboardClient({ user, isPro }: Props) {
           {carrossel && (activeTab === 'twitter' || activeTab === 'ilustrativo') && (
             <div className="flex flex-col xl:flex-row gap-6 lg:gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
               
-              {/* Lado Esquerdo: Preview */}
               <div className="flex-1 w-full space-y-4 lg:space-y-6">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-2">
                   <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
@@ -371,7 +387,7 @@ export default function DashboardClient({ user, isPro }: Props) {
                     <button onClick={() => setSlideAtual(prev => Math.min(carrossel.carrossel.length - 1, prev + 1))} className="p-3 bg-gray-900 hover:bg-gray-800 rounded-full border border-gray-800 disabled:opacity-20 flex-shrink-0" disabled={slideAtual === carrossel.carrossel.length - 1}><ChevronRight className="w-5 h-5" /></button>
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
-                    <button onClick={() => setCarrossel(null)} className="flex-1 sm:flex-none px-4 py-3 sm:py-2 text-xs font-bold text-red-400 bg-red-950/30 border border-red-900/50 hover:bg-red-900/50 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <button onClick={() => { if(window.confirm('Excluir este carrossel?')) setCarrossel(null); }} className="flex-1 sm:flex-none px-4 py-3 sm:py-2 text-xs font-bold text-red-400 bg-red-950/30 border border-red-900/50 hover:bg-red-900/50 rounded-lg transition-colors flex items-center justify-center gap-2">
                       <Trash2 className="w-4 h-4"/> EXCLUIR CARROSSEL
                     </button>
                     <button 
@@ -388,28 +404,25 @@ export default function DashboardClient({ user, isPro }: Props) {
                   </div>
                 </div>
 
-                {/* NOVO: Imagem com Skeleton de Loading */}
                 <div className="aspect-square w-full max-w-[700px] mx-auto bg-gray-950 rounded-[20px] lg:rounded-[40px] border border-gray-900 shadow-2xl overflow-hidden relative group">
                   {imgLoading && (
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-gray-950/90 backdrop-blur-sm">
                       <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                      <p className="text-gray-400 font-bold text-xs uppercase tracking-widest animate-pulse">Renderizando HQ...</p>
+                      <p className="text-gray-400 font-bold text-xs uppercase tracking-widest animate-pulse">Renderizando HD...</p>
                     </div>
                   )}
                   <img 
                     src={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} 
                     className={`w-full h-full object-contain pointer-events-none transition-opacity duration-300 ${imgLoading ? 'opacity-0' : 'opacity-100'}`} 
                     onLoad={() => setImgLoading(false)}
-                    key={`${slideAtual}-${activeTab}-${carrossel.carrossel[slideAtual].posicao_texto}-${carrossel.carrossel[slideAtual].usar_imagem}`}
+                    key={`${slideAtual}-${activeTab}-${carrossel.carrossel[slideAtual].posicao_texto}-${carrossel.carrossel[slideAtual].usar_imagem}-${JSON.stringify(config)}`}
                   />
                   <div className="absolute inset-0 border-[8px] lg:border-[16px] border-black/5 rounded-[20px] lg:rounded-[40px] pointer-events-none" />
                 </div>
               </div>
 
-              {/* Lado Direito: Controles */}
               <div className="w-full xl:w-[450px] space-y-4 lg:space-y-6">
                 
-                {/* NOVO: Ações do Card */}
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={adicionarSlide} className="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
                     <PlusCircle className="w-4 h-4" /> NOVO SLIDE AQUI
