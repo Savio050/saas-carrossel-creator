@@ -75,7 +75,7 @@ export default function DashboardClient({ user, isPro }: Props) {
     setShowSettings(false);
   };
 
- // NOVO MOTOR DE UPLOAD: API EXTERNA (ImgBB) - TESTE DIRETO
+  // NOVO MOTOR DE UPLOAD: API EXTERNA (ImgBB) - TESTE DIRETO
   const handleUploadGeneric = async (event: React.ChangeEvent<HTMLInputElement>, bucket: string) => {
     try {
       setFazendoUpload(true);
@@ -84,10 +84,10 @@ export default function DashboardClient({ user, isPro }: Props) {
       const file = event.target.files[0];
       if (file.size > 5 * 1024 * 1024) return alert('Máximo 5MB.');
 
-      // 1. COLE SUA CHAVE DO IMGBB AQUI DENTRO DAS ASPAS
+      // 1. SUA CHAVE DO IMGBB APLICADA DIRETO AQUI
       const apiKey = "d08afd1a36de9640074b348b1820cfbd"; 
       
-      if (apiKey === "COLE_SUA_CHAVE_AQUI") {
+      if (!apiKey || apiKey === "COLE_SUA_CHAVE_AQUI") {
         alert('Você esqueceu de colar a chave no código, Sávio!');
         return null;
       }
@@ -117,47 +117,6 @@ export default function DashboardClient({ user, isPro }: Props) {
     } catch (error) { 
       console.error(error);
       alert('Erro na comunicação com o ImgBB.'); 
-      return null; 
-    } finally { 
-      setFazendoUpload(false); 
-      // Limpa o input para permitir enviar a mesma foto de novo se precisar
-      event.target.value = ''; 
-    }
-  };
-      const data = await res.json();
-
-      if (data.success) {
-        // Sucesso! O ImgBB devolve o link da imagem pronta para o nosso Satori ler
-        return data.data.url; 
-      } else {
-        console.error("Erro detalhado do ImgBB:", data);
-        alert('O ImgBB recusou a imagem. Erro: ' + (data.error?.message || 'Desconhecido'));
-        return null;
-      }
-
-    } catch (error) { 
-      console.error(error);
-      alert('Erro na comunicação com o ImgBB.'); 
-      return null; 
-    } finally { 
-      setFazendoUpload(false); 
-      // Limpa o input para permitir enviar a mesma foto de novo se precisar
-      event.target.value = ''; 
-    }
-  };
-      
-
-      const data = await res.json();
-
-      if (data.success) {
-        // Sucesso! O ImgBB nos devolve o link da imagem pronta para uso
-        return data.data.url; 
-      } else {
-        throw new Error('Falha na API de imagem');
-      }
-
-    } catch (error) { 
-      alert('Erro no upload da imagem.'); 
       return null; 
     } finally { 
       setFazendoUpload(false); 
