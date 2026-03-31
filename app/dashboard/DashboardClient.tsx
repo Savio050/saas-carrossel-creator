@@ -409,6 +409,24 @@ export default function DashboardClient({ user, isPro }: Props) {
 
                 <div className="p-6 bg-orange-500/5 border border-orange-500/10 rounded-2xl flex items-start gap-4">
                   <Zap className="w-6 h-6 text-orange-500 flex-shrink-0" />
+                  <div className="pt-4 space-y-2">
+  <label className="text-[10px] font-black text-gray-600 uppercase text-gray-400">Posição do Texto</label>
+  <div className="grid grid-cols-3 gap-2">
+    {['topo', 'centro', 'rodape'].map((pos) => (
+      <button
+        key={pos}
+        onClick={() => updateSlideAtual({ posicao_texto: pos })}
+        className={`py-2 px-3 rounded-lg text-[10px] font-bold uppercase transition-all ${
+          (carrossel.carrossel[slideAtual].posicao_texto || 'centro') === pos
+            ? 'bg-orange-500 text-black'
+            : 'bg-[#111111] border border-gray-800 text-gray-400 hover:border-gray-700'
+        }`}
+      >
+        {pos}
+      </button>
+    ))}
+  </div>
+</div>
                   <p className="text-xs text-gray-400 leading-relaxed">
                     <strong className="text-orange-500 block mb-1">Dica de Especialista:</strong>
                     Carrosséis ilustrativos performam 42% melhor quando a imagem de fundo tem relação direta com a emoção do texto.
