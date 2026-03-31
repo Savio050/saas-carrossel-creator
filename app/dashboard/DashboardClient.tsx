@@ -75,21 +75,50 @@ export default function DashboardClient({ user, isPro }: Props) {
     setShowSettings(false);
   };
 
+  // NOVO MOTOR DE UPLOAD: API EXTERNA (ImgBB) - ZERO CUSTO DE SUPABASE
   const handleUploadGeneric = async (event: React.ChangeEvent<HTMLInputElement>, bucket: string) => {
     try {
       setFazendoUpload(true);
       if (!event.target.files || event.target.files.length === 0) return;
+      
       const file = event.target.files[0];
       if (file.size > 5 * 1024 * 1024) return alert('Máximo 5MB.');
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file);
+      // Monta o "pacote" invisível para mandar para o Drive Online
+      const formData = new FormData();
+      formData.append('image', file);
 
-      if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-      return data.publicUrl;
-    } catch (error) { alert('Erro no upload.'); return null; } finally { setFazendoUpload(false); }
+      // Pega a sua chave segura lá da Vercel
+      const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+      
+      if (!apiKey) {
+        alert('Chave do ImgBB não configurada na Vercel!');
+        return null;
+      }
+
+      // Dispara a imagem para o servidor do ImgBB
+      const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        // Sucesso! O ImgBB nos devolve o link da imagem pronta para uso
+        return data.data.url; 
+      } else {
+        throw new Error('Falha na API de imagem');
+      }
+
+    } catch (error) { 
+      alert('Erro no upload da imagem.'); 
+      return null; 
+    } finally { 
+      setFazendoUpload(false); 
+      // Limpa o input para permitir enviar a mesma foto de novo se precisar
+      event.target.value = ''; 
+    }
   };
 
   const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -421,11 +450,13 @@ export default function DashboardClient({ user, isPro }: Props) {
                 </div>
               </div>
 
+              {/* Lado Direito: Controles */}
               <div className="w-full xl:w-[450px] space-y-4 lg:space-y-6">
                 
+                {/* BOTÕES DE CONTROLE DOS SLIDES */}
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={adicionarSlide} className="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
-                    <PlusCircle className="w-4 h-4" /> NOVO SLIDE AQUI
+                    <PlusCircle className="w-4 h-4" /> NOVO SLIDE
                   </button>
                   <button onClick={removerSlide} className="bg-red-950/20 hover:bg-red-900/40 border border-red-900/30 text-red-400 font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
                     <MinusCircle className="w-4 h-4" /> REMOVER SLIDE
@@ -466,22 +497,23 @@ export default function DashboardClient({ user, isPro }: Props) {
                       </div>
                     )}
 
-                    <div className="pt-4 border-t border-gray-900 grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
+                    {/* NOVO LAYOUT: ALTERAR E REMOVER IMAGEM LADO A LADO */}
+                    <div className="grid grid-cols-2 gap-2 pt-2">
                       <div className="relative overflow-hidden w-full">
-                        <button className="w-full bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2">
-                          <Upload className="w-4 h-4" /> MUDAR FUNDO
+                        <button className="w-full bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 font-bold py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
+                          <Upload className="w-4 h-4" /> {fazendoUpload ? 'ENVIANDO...' : 'ALTERAR IMAGEM'}
                         </button>
-                        <input type="file" onChange={handleUploadSlideBg} className="absolute inset-0 opacity-0 cursor-pointer" />
+                        <input type="file" accept="image/*" onChange={handleUploadSlideBg} disabled={fazendoUpload} className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed" />
                       </div>
                       <button 
-                        onClick={() => updateSlideAtual({ usar_imagem: !carrossel.carrossel[slideAtual].usar_imagem })}
-                        className={`w-full font-bold py-3 px-4 rounded-xl text-xs transition-all ${carrossel.carrossel[slideAtual].usar_imagem ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-gray-900 text-gray-500 border border-gray-800'}`}
+                        onClick={() => updateSlideAtual({ usar_imagem: false, imageUrl: null })}
+                        className="w-full bg-red-950/20 hover:bg-red-900/40 border border-red-900/30 text-red-400 font-bold py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-2 transition-all"
                       >
-                        {carrossel.carrossel[slideAtual].usar_imagem ? 'REMOVER IMAGEM' : 'USAR IMAGEM'}
+                         <Trash2 className="w-4 h-4" /> REMOVER IMAGEM
                       </button>
                     </div>
 
-                    <a href={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} download={`slide-${slideAtual+1}.png`} className="w-full block text-center bg-orange-500 hover:bg-orange-600 text-black font-black py-4 rounded-xl transition-all shadow-lg shadow-orange-500/20 mt-2">
+                    <a href={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} download={`slide-${slideAtual+1}.png`} className="w-full block text-center bg-orange-500 hover:bg-orange-600 text-black font-black py-4 rounded-xl transition-all shadow-lg shadow-orange-500/20 mt-4">
                       BAIXAR ESTE SLIDE
                     </a>
                   </div>
