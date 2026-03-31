@@ -25,6 +25,7 @@ interface Slide {
   termo_pesquisa: string;
   imageUrl?: string | null;
   tipo?: string; // 'capa' | 'conteudo' | 'cta'
+  layout?: string; // NOVO: 'capa' | 'conteudo_overlay' | 'conteudo_split' | 'cta_minimalista'
 }
 
 interface Carrossel {
