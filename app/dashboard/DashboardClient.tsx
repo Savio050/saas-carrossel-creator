@@ -26,7 +26,7 @@ interface Slide {
   imageUrl?: string | null;
   tipo?: string; // 'capa' | 'conteudo' | 'cta'
   layout?: string; // NOVO: 'capa' | 'conteudo_overlay' | 'conteudo_split' | 'cta_minimalista'
-    posicao_texto?: string; // 'topo' | 'centro' | 'rodape'
+  posicao_texto?: string; // 'topo' | 'centro' | 'rodape'
 }
 
 interface Carrossel {
@@ -444,5 +444,3 @@ export default function DashboardClient({ user, isPro }: Props) {
     </div>
   );
 }
-
-posicao_texto?: string;
