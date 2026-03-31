@@ -87,9 +87,6 @@ export default function DashboardClient({ user, isPro }: Props) {
       // 1. SUA CHAVE DO IMGBB APLICADA DIRETO AQUI
       const apiKey = "d08afd1a36de9640074b348b1820cfbd"; 
       
-      if (!apiKey || apiKey === "COLE_SUA_CHAVE_AQUI") {
-        alert('Você esqueceu de colar a chave no código, Sávio!');
-        return null;
       }
 
       // 2. Monta o pacote de dados exatamente como a documentação pede
