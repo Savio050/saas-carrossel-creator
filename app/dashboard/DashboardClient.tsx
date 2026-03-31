@@ -9,16 +9,28 @@ import {
 } from 'lucide-react';
 
 interface Slide {
-  slide: number; texto: string; usar_imagem: boolean; termo_pesquisa: string;
-  imageUrl?: string | null; tipo?: string; layout?: string; posicao_texto?: string; 
+  slide: number; 
+  texto: string; 
+  usar_imagem: boolean; 
+  termo_pesquisa: string;
+  imageUrl?: string | null; 
+  tipo?: string; 
+  layout?: string; 
+  posicao_texto?: string; 
 }
 
 interface Carrossel {
-  tema_principal: string; numero_de_slides: number; carrossel: Slide[];
-  estilo?: string; palavra_comentario?: string;
+  tema_principal: string; 
+  numero_de_slides: number; 
+  carrossel: Slide[];
+  estilo?: string; 
+  palavra_comentario?: string;
 }
 
-interface Props { user: { email: string; id: string }; isPro: boolean; }
+interface Props { 
+  user: { email: string; id: string }; 
+  isPro: boolean; 
+}
 
 const FONTES_DISPONEIS = [
   'Montserrat', 'Open Sans', 'Nunito Sans', 'League Spartan', 'Kalam', 'Poppins', 'Anton', 'Bebas Neue'
@@ -35,7 +47,7 @@ export default function DashboardClient({ user, isPro }: Props) {
   const [imgLoading, setImgLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
-  // NOVO: Estado Avançado de Configuração (Capa, Cards, CTA)
+  // Estado Avançado de Configuração (Capa, Cards, CTA)
   const [config, setConfig] = useState({
     capa: { fonte: 'Montserrat', tamanho: 'gigante' },
     cards: { fonte: 'Open Sans', tamanho: 'padrao' },
@@ -58,8 +70,10 @@ export default function DashboardClient({ user, isPro }: Props) {
     const carregarTudo = async () => {
       const { data } = await supabase.from('users').select('nome, arroba, avatar_url, is_verified').eq('id', user.id).single();
       if (data) {
-        setNome(data.nome || ''); setArroba(data.arroba || '');
-        setAvatarUrl(data.avatar_url || ''); setIsVerified(data.is_verified || false);
+        setNome(data.nome || ''); 
+        setArroba(data.arroba || '');
+        setAvatarUrl(data.avatar_url || ''); 
+        setIsVerified(data.is_verified || false);
       }
       const savedConfig = localStorage.getItem('configIlustrativo');
       if (savedConfig) setConfig(JSON.parse(savedConfig));
@@ -67,7 +81,9 @@ export default function DashboardClient({ user, isPro }: Props) {
     carregarTudo();
   }, [supabase, user.id]);
 
-  useEffect(() => { if (carrossel) setImgLoading(true); }, [slideAtual, carrossel, config]);
+  useEffect(() => { 
+    if (carrossel) setImgLoading(true); 
+  }, [slideAtual, carrossel, config]);
 
   const salvarConfiguracoes = () => {
     localStorage.setItem('configIlustrativo', JSON.stringify(config));
@@ -75,26 +91,27 @@ export default function DashboardClient({ user, isPro }: Props) {
     setShowSettings(false);
   };
 
-  // NOVO MOTOR DE UPLOAD: API EXTERNA (ImgBB) - TESTE DIRETO
+  // NOVO MOTOR DE UPLOAD: API EXTERNA (ImgBB)
   const handleUploadGeneric = async (event: React.ChangeEvent<HTMLInputElement>, bucket: string) => {
     try {
       setFazendoUpload(true);
-      if (!event.target.files || event.target.files.length === 0) return;
+      if (!event.target.files || event.target.files.length === 0) return null;
       
       const file = event.target.files[0];
-      if (file.size > 5 * 1024 * 1024) return alert('Máximo 5MB.');
-
-      // 1. SUA CHAVE DO IMGBB APLICADA DIRETO AQUI
-      const apiKey = "d08afd1a36de9640074b348b1820cfbd"; 
-      
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Máximo 5MB.');
+        return null;
       }
 
-      // 2. Monta o pacote de dados exatamente como a documentação pede
+      // SUA CHAVE DO IMGBB APLICADA DIRETO AQUI
+      const apiKey = "d08afd1a36de9640074b348b1820cfbd"; 
+
+      // Monta o pacote de dados exatamente como a documentação pede
       const formData = new FormData();
       formData.append('image', file);
-      formData.append('key', apiKey); // Chave enviada de forma segura no corpo
+      formData.append('key', apiKey);
 
-      // 3. Envia para o servidor deles
+      // Envia para o servidor do ImgBB
       const res = await fetch('https://api.imgbb.com/1/upload', {
         method: 'POST',
         body: formData,
@@ -103,7 +120,7 @@ export default function DashboardClient({ user, isPro }: Props) {
       const data = await res.json();
 
       if (data.success) {
-        // Sucesso! O ImgBB devolve o link da imagem pronta para o nosso Satori ler
+        // Sucesso! Devolve o link da imagem pronta
         return data.data.url; 
       } else {
         console.error("Erro detalhado do ImgBB:", data);
@@ -124,7 +141,10 @@ export default function DashboardClient({ user, isPro }: Props) {
 
   const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = await handleUploadGeneric(e, 'avatars');
-    if (url) { setAvatarUrl(url); await supabase.from('users').update({ avatar_url: url }).eq('id', user.id); }
+    if (url) { 
+      setAvatarUrl(url); 
+      await supabase.from('users').update({ avatar_url: url }).eq('id', user.id); 
+    }
   };
 
   const handleUploadSlideBg = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,8 +162,13 @@ export default function DashboardClient({ user, isPro }: Props) {
       const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tema }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao gerar');
-      data.estilo = activeTab; setCarrossel(data);
-    } catch (err: any) { setError(err.message || 'Erro inesperado'); } finally { setLoading(false); }
+      data.estilo = activeTab; 
+      setCarrossel(data);
+    } catch (err: any) { 
+      setError(err.message || 'Erro inesperado'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const getSlideImageUrl = (slide: Slide, carrosselData: Carrossel) => {
@@ -184,7 +209,8 @@ export default function DashboardClient({ user, isPro }: Props) {
     if (!carrossel) return;
     const novos = [...carrossel.carrossel];
     novos.splice(slideAtual + 1, 0, { slide: novos.length + 1, texto: 'Novo slide...', usar_imagem: false, termo_pesquisa: '', imageUrl: null, tipo: 'conteudo', layout: 'conteudo_overlay' });
-    setCarrossel({ ...carrossel, numero_de_slides: novos.length, carrossel: novos }); setSlideAtual(slideAtual + 1);
+    setCarrossel({ ...carrossel, numero_de_slides: novos.length, carrossel: novos }); 
+    setSlideAtual(slideAtual + 1);
   };
 
   const removerSlide = () => {
@@ -451,10 +477,8 @@ export default function DashboardClient({ user, isPro }: Props) {
                 </div>
               </div>
 
-              {/* Lado Direito: Controles */}
               <div className="w-full xl:w-[450px] space-y-4 lg:space-y-6">
                 
-                {/* BOTÕES DE CONTROLE DOS SLIDES */}
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={adicionarSlide} className="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
                     <PlusCircle className="w-4 h-4" /> NOVO SLIDE
@@ -498,7 +522,6 @@ export default function DashboardClient({ user, isPro }: Props) {
                       </div>
                     )}
 
-                    {/* NOVO LAYOUT: ALTERAR E REMOVER IMAGEM LADO A LADO */}
                     <div className="grid grid-cols-2 gap-2 pt-2">
                       <div className="relative overflow-hidden w-full">
                         <button className="w-full bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 font-bold py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
