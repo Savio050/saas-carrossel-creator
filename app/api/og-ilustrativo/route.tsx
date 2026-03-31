@@ -15,9 +15,22 @@ export async function GET(req: NextRequest) {
     const layout = searchParams.get('layout') || searchParams.get('tipo') || 'conteudo_overlay'; 
     const nomeMarca = searchParams.get('marca') || 'SUA MARCA';
     const palavraComentario = searchParams.get('comentario') || 'MED';
-    
-    // NOVO: Lê a posição que o frontend mandou (Padrão é centro)
     const posicao = searchParams.get('posicao') || 'centro'; 
+    
+    // Novas Configurações de Tipografia
+    const tamanho = searchParams.get('tamanho') || 'padrao';
+    const espacamento = searchParams.get('espacamento') || 'padrao';
+
+    // Calculando Tamanho
+    let baseFontSize = 56;
+    if (tamanho === 'pequeno') baseFontSize = 46;
+    if (tamanho === 'grande') baseFontSize = 66;
+    if (tamanho === 'gigante') baseFontSize = 76;
+
+    // Calculando Espaçamento
+    let lineHeight = 1.4;
+    if (espacamento === 'apertado') lineHeight = 1.1;
+    if (espacamento === 'largo') lineHeight = 1.7;
 
     let imageData: string | null = null;
     if (imageUrl && imageUrl !== 'null' && imageUrl !== 'undefined') {
@@ -48,7 +61,7 @@ export async function GET(req: NextRequest) {
               <div style={{ color: 'white', fontSize: 24, fontWeight: 800, letterSpacing: '0.2em' }}>{nomeMarca}</div>
             </div>
             <div style={{ position: 'relative', zIndex: 10, padding: '0 60px 100px 60px', display: 'flex', width: '100%', justifyContent: 'center' }}>
-              <div style={{ fontSize: 95, fontWeight: 900, color: 'white', textTransform: 'uppercase', textAlign: 'center', lineHeight: 0.9, letterSpacing: '-0.04em' }}>
+              <div style={{ fontSize: baseFontSize + 35, fontWeight: 900, color: 'white', textTransform: 'uppercase', textAlign: 'center', lineHeight: 0.9, letterSpacing: '-0.04em' }}>
                 {texto}
               </div>
             </div>
@@ -66,7 +79,7 @@ export async function GET(req: NextRequest) {
               {imageData && <img src={imageData} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
             </div>
             <div style={{ display: 'flex', width: '100%', height: '45%', padding: '0 100px', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ fontSize: 52, fontWeight: 500, color: '#0F172A', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+              <div style={{ fontSize: baseFontSize - 4, fontWeight: 500, color: '#0F172A', lineHeight: lineHeight, whiteSpace: 'pre-wrap' }}>
                 {texto}
               </div>
             </div>
@@ -82,7 +95,7 @@ export async function GET(req: NextRequest) {
           <div style={{ width: W, height: H, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', backgroundColor: '#001E60', overflow: 'hidden' }}>
             {imageData && <img src={imageData} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', opacity: 0.15 }} />}
             <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 60, padding: '0 100px' }}>
-              <div style={{ fontSize: 60, fontWeight: 500, color: 'white', textAlign: 'center', lineHeight: 1.3, whiteSpace: 'pre-wrap' }}>
+              <div style={{ fontSize: baseFontSize + 4, fontWeight: 500, color: 'white', textAlign: 'center', lineHeight: 1.3, whiteSpace: 'pre-wrap' }}>
                 {texto}
               </div>
               <div style={{ display: 'flex', backgroundColor: 'white', padding: '30px 80px', borderRadius: 40, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
@@ -94,29 +107,25 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // ==========================================
-    // 4. CONTEÚDO OVERLAY (PADRÃO) COM POSICIONAMENTO DINÂMICO
-    // ==========================================
+    // 4. CONTEÚDO OVERLAY (PADRÃO)
     let justifyContent = 'center';
     let padding = '0 100px';
 
     if (posicao === 'topo') {
       justifyContent = 'flex-start';
-      padding = '180px 100px 0 100px'; // Empurra para o topo
+      padding = '180px 100px 0 100px'; 
     } else if (posicao === 'rodape') {
       justifyContent = 'flex-end';
-      padding = '0 100px 180px 100px'; // Empurra para baixo
+      padding = '0 100px 180px 100px'; 
     }
 
     return new ImageResponse(
       (
         <div style={{ width: W, height: H, display: 'flex', position: 'relative', backgroundColor: '#111', overflow: 'hidden' }}>
           {imageData && <img src={imageData} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-          
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)' }} />
-          
           <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', justifyContent: justifyContent, padding: padding, width: '100%', height: '100%' }}>
-            <div style={{ fontSize: 56, fontWeight: 600, color: 'white', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+            <div style={{ fontSize: baseFontSize, fontWeight: 600, color: 'white', lineHeight: lineHeight, whiteSpace: 'pre-wrap' }}>
               {texto}
             </div>
           </div>
