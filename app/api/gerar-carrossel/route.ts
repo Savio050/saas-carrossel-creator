@@ -6,36 +6,34 @@ async function searchImage(query: string): Promise<string | null> {
     const res = await fetch('https://google.serper.dev/images', {
       method: 'POST',
       headers: { 'X-API-KEY': process.env.SERPER_API_KEY!, 'Content-Type': 'application/json' },
-      // Pedimos 10 resultados para ter margem de escolha
-      body: JSON.stringify({ q: query, num: 10 }),
+      body: JSON.stringify({ q: query, num: 5 }), // Pedimos os 5 melhores resultados
     });
     const data = await res.json();
 
     if (!data.images || data.images.length === 0) return null;
 
-    // O FILTRO ANTITRAVAMENTO
-    const imagemSegura = data.images.find((img: any) => {
+    // FILTRO LEVE: Remove apenas o que TEMOS CERTEZA que trava o Satori
+    const imagemRelevante = data.images.find((img: any) => {
       if (!img.imageUrl) return false;
       const url = img.imageUrl.toLowerCase();
       
-      // Regra 1: Satori só aceita JPG e PNG.
-      const isFormatoCorreto = url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png');
+      // Bloqueia apenas formatos modernos incompatíveis
+      const isFormatoProibido = url.includes('.webp') || url.includes('.svg');
       
-      // Regra 2: Ignorar imagens que não têm a extensão na URL (geralmente são base64 ou webp oculto)
-      const hasExtensao = url.match(/\.(jpeg|jpg|png)(\?.*)?$/i);
-      
-      // Regra 3: Ignorar sites conhecidos por bloquear imagens (Cloudflare/Hotlink protection)
-      const isSiteProibido = url.includes('wikimedia') || url.includes('wikipedia') || url.includes('fbsbx') || url.includes('shutterstock') || url.includes('getty');
+      // Bloqueia sites que têm firewalls rígidos contra robôs (hotlink)
+      const isSiteProibido = url.includes('wikimedia') || url.includes('wikipedia') || url.includes('fbsbx') || url.includes('lookaside');
 
-      return isFormatoCorreto && hasExtensao && !isSiteProibido;
+      return !isFormatoProibido && !isSiteProibido;
     });
 
-    // Se achou uma imagem blindada, retorna ela. Se não, tenta a primeira e torce para o 'onError' do frontend segurar.
-    return imagemSegura ? imagemSegura.imageUrl : data.images[0]?.imageUrl ?? null;
+    // Se achou uma que não é proibida, usa ela (normalmente a 1ª ou 2ª mais relevante).
+    // Se der qualquer erro na hora de gerar o card, o `onError` do nosso frontend desativa a imagem silenciosamente.
+    return imagemRelevante ? imagemRelevante.imageUrl : data.images[0]?.imageUrl ?? null;
   } catch { 
     return null; 
   }
 }
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
