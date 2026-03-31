@@ -6,13 +6,36 @@ async function searchImage(query: string): Promise<string | null> {
     const res = await fetch('https://google.serper.dev/images', {
       method: 'POST',
       headers: { 'X-API-KEY': process.env.SERPER_API_KEY!, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ q: query, num: 3 }),
+      // Pedimos 10 resultados para ter margem de escolha
+      body: JSON.stringify({ q: query, num: 10 }),
     });
     const data = await res.json();
-    return data.images?.[0]?.imageUrl ?? null;
-  } catch { return null; }
-}
 
+    if (!data.images || data.images.length === 0) return null;
+
+    // O FILTRO ANTITRAVAMENTO
+    const imagemSegura = data.images.find((img: any) => {
+      if (!img.imageUrl) return false;
+      const url = img.imageUrl.toLowerCase();
+      
+      // Regra 1: Satori só aceita JPG e PNG.
+      const isFormatoCorreto = url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png');
+      
+      // Regra 2: Ignorar imagens que não têm a extensão na URL (geralmente são base64 ou webp oculto)
+      const hasExtensao = url.match(/\.(jpeg|jpg|png)(\?.*)?$/i);
+      
+      // Regra 3: Ignorar sites conhecidos por bloquear imagens (Cloudflare/Hotlink protection)
+      const isSiteProibido = url.includes('wikimedia') || url.includes('wikipedia') || url.includes('fbsbx') || url.includes('shutterstock') || url.includes('getty');
+
+      return isFormatoCorreto && hasExtensao && !isSiteProibido;
+    });
+
+    // Se achou uma imagem blindada, retorna ela. Se não, tenta a primeira e torce para o 'onError' do frontend segurar.
+    return imagemSegura ? imagemSegura.imageUrl : data.images[0]?.imageUrl ?? null;
+  } catch { 
+    return null; 
+  }
+}
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
