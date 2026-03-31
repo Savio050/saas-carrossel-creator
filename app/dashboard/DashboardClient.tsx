@@ -26,10 +26,12 @@ interface Slide {
   imageUrl?: string | null;
   tipo?: string; // 'capa' | 'conteudo' | 'cta'
   layout?: string; // NOVO: 'capa' | 'conteudo_overlay' | 'conteudo_split' | 'cta_minimalista'
+    posicao_texto?: string; // 'topo' | 'centro' | 'rodape'
 }
 
 interface Carrossel {
-  tema_principal: string;
+  tema_principal
+    posicao_texto?: string; // 'topo' | 'centro' | 'rodape': string;
   numero_de_slides: number;
   carrossel: Slide[];
   estilo?: string; // 'twitter' | 'ilustrativo'
@@ -442,3 +444,5 @@ export default function DashboardClient({ user, isPro }: Props) {
     </div>
   );
 }
+
+posicao_texto?: string;
