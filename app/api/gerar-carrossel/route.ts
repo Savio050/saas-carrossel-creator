@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+// Busca limpa no Serper: Pega o primeiro resultado e deixa o frontend lidar com os erros silenciosamente
 async function searchImage(query: string): Promise<string | null> {
   try {
     const res = await fetch('https://google.serper.dev/images', {
@@ -24,10 +25,28 @@ export async function POST(req: NextRequest) {
     const { data: profile } = await supabase.from('users').select('is_pro').eq('id', user.id).single();
     if (!profile?.is_pro) return NextResponse.json({ error: 'Plano PRO necessario' }, { status: 403 });
 
-    const { tema } = await req.json();
+    // Recebendo as novas configurações enviadas pela interface
+    const { tema, modeloPrompt, configImagem, numSlides } = await req.json();
     if (!tema) return NextResponse.json({ error: 'Tema obrigatorio' }, { status: 400 });
 
-    const systemPrompt = `Voce é um copywriter de elite especialista em carrosseis virais de Instagram sobre business, marketing e mercado imobiliario. Escolha um case de negocio NOVO e ALEATORIO baseado no tema fornecido. Escreva entre 8 e 15 slides. Slide 1 deve ter gancho chocante com numeros reais, ou um gancho chamativo e polêmico, ou um gancho provocativo. Desenvolvimento mostra bastidores do modelo de negocios. Ultimo slide entrega uma liçao ou pergunta provocativa. Texto incisivo, max 2 paragrafos curtos por slide. SEM negrito, SEM asterisco. Retorne APENAS JSON valido, sem markdown: { "tema_principal": string, "numero_de_slides": number, "carrossel": [ { "slide": number, "texto": string, "usar_imagem": boolean, "termo_pesquisa": string } ] }. Para usar_imagem true, termo_pesquisa em ingles de imagem diretamente relacionada ao tema, marca, pessoa, ou objetos, que representem visualmente o assunto abordado no conteúdo do slide o com -stock -watermark -getty -shutterstock. 30% dos slides sem imagem.`;
+    // Lógica dinâmica de imagens baseada na escolha do usuário
+    let regraImagens = '30% dos slides sem imagem.';
+    if (configImagem === 'sempre') {
+      regraImagens = 'TODOS os slides DEVEM ter usar_imagem como true e um termo_pesquisa correspondente.';
+    } else if (configImagem === 'nunca') {
+      regraImagens = 'TODOS os slides DEVEM ter usar_imagem como false. O carrossel será 100% texto.';
+    }
+
+    // Montagem do Prompt Dinâmico com a Persona selecionada
+    const basePrompt = modeloPrompt || 'Você é um copywriter de elite especialista em carrosséis virais para Instagram.';
+    
+    const systemPrompt = `${basePrompt}
+    Você deve escrever EXATAMENTE ${numSlides || 10} slides sobre o tema fornecido.
+    A regra para imagens é: ${regraImagens}
+    O texto deve ser incisivo, máximo 2 parágrafos curtos por slide. SEM negrito, SEM asterisco.
+    Se usar_imagem for true, coloque o termo_pesquisa em inglês com -stock -watermark -getty -shutterstock.
+    Retorne APENAS JSON válido, sem markdown, no formato exato:
+    { "tema_principal": "string", "numero_de_slides": ${numSlides || 10}, "carrossel": [ { "slide": number, "texto": "string", "usar_imagem": boolean, "termo_pesquisa": "string" } ] }`;
 
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -56,16 +75,15 @@ export async function POST(req: NextRequest) {
     const rawText = (geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
 
     if (!rawText) {
-      console.error('Gemini retornou texto vazio. Resposta completa:', JSON.stringify(geminiData));
+      console.error('Gemini retornou texto vazio.');
       return NextResponse.json({ error: 'Gemini retornou resposta vazia' }, { status: 500 });
     }
 
     let carrossel;
     try {
-      // Tenta parse direto (quando responseMimeType funciona)
       carrossel = JSON.parse(rawText);
     } catch {
-      // Fallback: remove markdown code fences se houver
+      // Fallback de limpeza caso o Gemini mande blocos de markdown ```json
       const cleaned = rawText
         .replace(/^```json\s*/i, '')
         .replace(/^```\s*/i, '')
@@ -74,17 +92,14 @@ export async function POST(req: NextRequest) {
       try {
         carrossel = JSON.parse(cleaned);
       } catch {
-        // Ultimo fallback: extrai o primeiro objeto JSON encontrado
         const match = cleaned.match(/\{[\s\S]*\}/);
         if (match) {
           try {
             carrossel = JSON.parse(match[0]);
           } catch {
-            console.error('Falha total no parse. rawText:', rawText);
             return NextResponse.json({ error: 'JSON invalido do Gemini', raw: rawText }, { status: 500 });
           }
         } else {
-          console.error('Nenhum JSON encontrado. rawText:', rawText);
           return NextResponse.json({ error: 'JSON invalido do Gemini', raw: rawText }, { status: 500 });
         }
       }
