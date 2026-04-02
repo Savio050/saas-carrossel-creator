@@ -3,91 +3,74 @@ import { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
+const W = 1080;
+const H = 1350;
+
 export async function GET(req: NextRequest) {
   try {
-    // 1. Pega todos os parâmetros enviados pelo Frontend
     const { searchParams } = new URL(req.url);
-    const texto = searchParams.get('texto') || 'Texto não encontrado';
-    const imageUrl = searchParams.get('imageUrl');
-    
-    const nome = searchParams.get('nome') || 'Nome de Usuário';
-    const arroba = searchParams.get('arroba') || '@usuario';
-    const avatar = searchParams.get('avatar') || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
+    const texto = searchParams.get('texto') || '';
+    const nome = searchParams.get('nome') || 'Nome Padrão';
+    const arroba = searchParams.get('arroba') || '@arroba';
+    const avatar = searchParams.get('avatar') || '';
     const isVerified = searchParams.get('verified') === 'true';
+    const imageUrl = searchParams.get('imageUrl');
+    const tema = searchParams.get('tema') || 'light'; // NOVO: Leitura do Tema
 
-    // 2. Sistema antibloqueio de imagens externas
-    let imageBuffer: ArrayBuffer | null = null;
-    let hasImage = false;
+    // Configuração de Cores Dinâmicas
+    const bgCor = tema === 'dark' ? '#000000' : '#FFFFFF';
+    const textoCor = tema === 'dark' ? '#E7E9EA' : '#0F1419';
+    const subtextoCor = tema === 'dark' ? '#71767B' : '#536471';
+    const bordaCor = tema === 'dark' ? '#2F3336' : '#EFF3F4';
 
+    let imageData: string | null = null;
     if (imageUrl && imageUrl !== 'null' && imageUrl !== 'undefined') {
       try {
-        const res = await fetch(imageUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-          signal: AbortSignal.timeout(4000)
-        });
+        const res = await fetch(imageUrl, { signal: AbortSignal.timeout(4000) });
         if (res.ok) {
-          imageBuffer = await res.arrayBuffer();
-          hasImage = true;
+          const buffer = await res.arrayBuffer();
+          const base64 = Buffer.from(buffer).toString('base64');
+          const contentType = res.headers.get('content-type') || 'image/jpeg';
+          imageData = `data:${contentType};base64,${base64}`;
         }
-      } catch (error) {
-        console.warn('Bloqueio no download da imagem. Convertendo para modo texto.');
-      }
+      } catch { imageData = null; }
     }
 
-    // 3. Desenho do Card
     return new ImageResponse(
       (
-        <div style={{
-          display: 'flex', flexDirection: 'column', width: 1080, height: 1350,
-          backgroundColor: '#FFFFFF', padding: '80px', fontFamily: 'sans-serif',
-          // MÁGICA DO ALINHAMENTO: Se não tem foto, centraliza tudo
-          justifyContent: hasImage ? 'flex-start' : 'center', 
-        }}>
+        <div style={{ width: W, height: H, display: 'flex', flexDirection: 'column', backgroundColor: bgCor, padding: '80px', fontFamily: 'sans-serif' }}>
           
-          {/* Cabeçalho */}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '50px' }}>
-            <img
-              src={avatar}
-              style={{ width: '130px', height: '130px', borderRadius: '65px', objectFit: 'cover' }}
-            />
-            <div style={{ display: 'flex', flexDirection: 'column', marginLeft: '35px' }}>
+          {/* HEADER DO TWITTER */}
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '40px' }}>
+            <img src={avatar} style={{ width: 120, height: 120, borderRadius: '50%', marginRight: '30px', objectFit: 'cover' }} />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span style={{ fontSize: '52px', fontWeight: 'bold', color: '#000000', lineHeight: 1.2 }}>
-                  {nome}
-                </span>
-                
-                {/* SVG Blindado para o Satori (Selo Verificado) */}
+                <span style={{ fontSize: 46, fontWeight: 700, color: textoCor, marginRight: '10px' }}>{nome}</span>
                 {isVerified && (
-                  <svg width="48" height="48" viewBox="0 0 24 24" style={{ marginLeft: '12px' }}>
-                    <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.918-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.337 2.25c-.416-.165-.866-.25-1.336-.25-2.21 0-3.918 1.79-3.918 4 0 .495.084.965.238 1.4-1.273.65-2.148 2.02-2.148 3.6 0 1.46.827 2.73 2.044 3.397-.042.196-.063.396-.063.603 0 2.21 1.71 4 3.918 4 .5 0 .97-.084 1.408-.238 1.256 1.152 2.924 1.838 4.757 1.838 1.832 0 3.5-.686 4.756-1.838.438.154.908.238 1.408.238 2.21 0 3.918-1.79 3.918-4 0-.207-.02-.407-.063-.603 1.217-.667 2.044-1.937 2.044-3.397z" fill="#1D9BF0"></path>
-                    <path d="M10.22 15.18l-3.3-3.3 1.41-1.42 1.89 1.89 4.88-4.88 1.42 1.42-6.3 6.3z" fill="#ffffff"></path>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="#1D9BF0">
+                    <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.918-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.337 2.25c-.416-.165-.866-.25-1.336-.25-2.21 0-3.918 1.792-3.918 4 0 .495.084.965.238 1.4-1.273.65-2.148 2.02-2.148 3.6 0 1.46.74 2.746 1.867 3.45-.032.205-.05.412-.05.62 0 2.21 1.71 4 3.918 4 .622 0 1.213-.157 1.744-.427.575 1.155 1.745 1.93 3.12 1.93 1.373 0 2.544-.775 3.118-1.93.53.27 1.122.427 1.745.427 2.208 0 3.918-1.79 3.918-4 0-.208-.018-.415-.05-.62 1.126-.704 1.866-1.99 1.866-3.45zm-11.46 5.48l-4.1-3.6 1.48-1.68 2.45 2.14 5.38-6.9 1.66 1.3-6.87 8.74z" />
                   </svg>
                 )}
               </div>
-              <span style={{ fontSize: '42px', color: '#657786' }}>
-                {arroba}
-              </span>
+              <span style={{ fontSize: 38, color: subtextoCor }}>{arroba}</span>
             </div>
           </div>
 
-          {/* Texto do Tweet */}
-          <div style={{ display: 'flex', fontSize: '48px', color: '#000000', lineHeight: 1.4, letterSpacing: '-0.02em', marginBottom: hasImage ? '60px' : '0', flexWrap: 'wrap', whiteSpace: 'pre-wrap' }}>
+          {/* TEXTO */}
+          <div style={{ fontSize: 52, color: textoCor, lineHeight: 1.4, whiteSpace: 'pre-wrap', marginBottom: imageData ? '50px' : '0' }}>
             {texto}
           </div>
 
-          {/* Imagem de Fundo (Só renderiza se conseguiu baixar) */}
-          {hasImage && imageBuffer && (
-            <div style={{ display: 'flex', width: '100%', flex: 1, overflow: 'hidden', borderRadius: '32px' }}>
-              {/* O Satori lê o ArrayBuffer diretamente para evitar erros 403 do navegador */}
-              <img src={imageBuffer as any} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          {/* IMAGEM OPCIONAL */}
+          {imageData && (
+            <div style={{ display: 'flex', width: '100%', flex: 1, borderRadius: '40px', overflow: 'hidden', border: `2px solid ${bordaCor}` }}>
+              <img src={imageData} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           )}
         </div>
-      ),
-      { width: 1080, height: 1350 }
+      ), { width: W, height: H }
     );
-  } catch (e) {
-    console.error('Erro geral no Satori:', e);
-    return new Response(`Erro ao gerar imagem`, { status: 500 });
+  } catch (error) {
+    return new Response('Erro', { status: 500 });
   }
 }
