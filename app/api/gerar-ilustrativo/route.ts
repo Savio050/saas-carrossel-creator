@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createClient } from '@/lib/supabase/server';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
-async function buscarImagemPexels(termo: string): Promise<string | null> {
+// Motor de busca do Ilustrativo: Usa Pexels (Imagens de estúdio, 100% seguras e gratuitas)
+async function searchImage(termo: string): Promise<string | null> {
   try {
     const res = await fetch(
-      `https://api.pexels.com/v1/search?query=${encodeURIComponent(termo)}&per_page=1&orientation=portrait`,
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(termo)}&per_page=1&orientation=landscape`,
       {
         headers: { Authorization: process.env.PEXELS_API_KEY || '' },
         signal: AbortSignal.timeout(5000),
@@ -15,7 +14,8 @@ async function buscarImagemPexels(termo: string): Promise<string | null> {
     if (!res.ok) return null;
     const data = await res.json();
     if (data.photos && data.photos.length > 0) {
-      return data.photos[0].src.large2x || data.photos[0].src.large || null;
+      // Usamos o tamanho 'large' (ótima qualidade, mas leve para carregar rápido)
+      return data.photos[0].src.large || null; 
     }
     return null;
   } catch {
@@ -25,108 +25,121 @@ async function buscarImagemPexels(termo: string): Promise<string | null> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { tema } = await req.json();
-    if (!tema || !tema.trim()) {
-      return NextResponse.json({ error: 'Tema obrigatorio' }, { status: 400 });
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 });
+
+    const { data: profile } = await supabase.from('users').select('is_pro').eq('id', user.id).single();
+    if (!profile?.is_pro) return NextResponse.json({ error: 'Plano PRO necessario' }, { status: 403 });
+
+    // Recebendo as configurações dinâmicas da interface
+    const { tema, modeloPrompt, configImagem, numSlides } = await req.json();
+    if (!tema) return NextResponse.json({ error: 'Tema obrigatorio' }, { status: 400 });
+
+    // Lógica de Imagens (Herdada das configurações)
+    let regraImagens = 'Tente usar imagens conceituais na maioria dos slides, mas pode deixar 2 ou 3 sem imagem para respiro.';
+    if (configImagem === 'sempre') {
+      regraImagens = 'TODOS os slides DEVEM ter usar_imagem como true e um termo_pesquisa correspondente.';
+    } else if (configImagem === 'nunca') {
+      regraImagens = 'TODOS os slides DEVEM ter usar_imagem como false. O carrossel será 100% focado no texto.';
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const qtdSlides = numSlides || 10;
+    const basePrompt = modeloPrompt || 'Você é um diretor de arte e copywriter de elite, especialista em carrosséis magnéticos e visuais para o Instagram.';
 
-    const prompt = `
-Você é um Copywriter Sênior e Diretor de Arte especialista em carrosséis de retenção extrema para Instagram (Estilo Documentário/Storytelling).
+    const systemPrompt = `${basePrompt}
+    Escreva EXATAMENTE ${qtdSlides} slides sobre o tema fornecido.
+    A regra para imagens é: ${regraImagens}
+    O texto deve ser curto, poético ou incisivo (máximo de 15 palavras por slide de conteúdo).
+    Se usar imagem, coloque o termo_pesquisa EM INGLÊS focando na EMOÇÃO ou CONCEITO (ex: "lonely man", "success building", "dark aesthetic").
+    
+    Cada slide DEVE ter um "tipo" e um "layout":
+    - Slide 1: tipo "capa", layout "capa".
+    - Slides do meio: tipo "conteudo", layout alternando entre "conteudo_overlay" e "conteudo_split".
+    - Último slide: tipo "cta", layout "cta_minimalista". Crie uma palavra de 4 a 6 letras para "palavra_comentario".
 
-Sua missão é criar o roteiro de um carrossel sobre o tema: "${tema}".
+    Retorne APENAS JSON válido, sem markdown:
+    { 
+      "tema_principal": "string", 
+      "numero_de_slides": ${qtdSlides},
+      "palavra_comentario": "EUQUERO",
+      "carrossel": [ 
+        { "slide": number, "texto": "string", "usar_imagem": boolean, "termo_pesquisa": "string", "tipo": "string", "layout": "string" } 
+      ] 
+    }`;
 
-DIRETRIZES DE ENGAJAMENTO (COPY):
-- O carrossel DEVE ter entre 8 e 15 slides.
-- Use a técnica de "Escorregador": cada slide deve deixar um gancho para o próximo.
-- Textos dos slides de conteúdo devem ser curtos (máximo 15 a 20 palavras).
-- Linguagem de autoridade, revelando "bastidores", "segredos" ou "erros fatais".
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ parts: [{ text: `Tema: ${tema}` }] }],
+          generationConfig: {
+            temperature: 0.9,
+            maxOutputTokens: 4096,
+            responseMimeType: 'application/json',
+          },
+        }),
+      }
+    );
 
-DIRETRIZES DE DIREÇÃO DE ARTE (VISUAL):
-Para reproduzir o design perfeito, você deve assinalar a propriedade "layout" de cada slide escolhendo UMA das opções abaixo:
-1. "capa": Uso exclusivo no slide 1. Título GIGANTE EM UPPERCASE no rodapé.
-2. "conteudo_overlay": Imagem em tela cheia com máscara escura, texto branco legível e centralizado.
-3. "conteudo_split": Imagem na metade superior, fundo branco sólido na metade inferior com texto escuro e elegante (excelente para respiros visuais).
-4. "cta_minimalista": Uso exclusivo no último slide. Fundo em cor sólida, texto direto e um "botão" de comentário.
+    const geminiData = await geminiRes.json();
 
-ESTRUTURA OBRIGATÓRIA DO JSON (Retorne APENAS o JSON, sem markdown ou explicações):
-{
-  "tema_principal": "string com o tema resumido",
-  "numero_de_slides": integer (entre 8 e 15),
-  "estilo": "ilustrativo",
-  "palavra_comentario": "PALAVRA_EM_UPPERCASE",
-  "carrossel": [
-    {
-      "slide": 1,
-      "tipo": "capa",
-      "layout": "capa",
-      "texto": "TITULO DE IMPACTO GIGANTE (MAX 7 PALAVRAS)",
-      "usar_imagem": true,
-      "termo_pesquisa": "english search term for pexels (e.g., sad athlete, dark office)"
-    },
-    {
-      "slide": 2,
-      "tipo": "conteudo",
-      "layout": "conteudo_overlay",
-      "texto": "A narrativa começa aqui com um problema ou curiosidade intrigante.",
-      "usar_imagem": true,
-      "termo_pesquisa": "english search term"
-    },
-    {
-      "slide": 3,
-      "tipo": "conteudo",
-      "layout": "conteudo_split",
-      "texto": "Use este layout de fundo branco para destacar um dado técnico ou fato oficial.",
-      "usar_imagem": true,
-      "termo_pesquisa": "english search term"
-    },
-    {
-      "slide": "...",
-      "tipo": "conteudo",
-      "layout": "Intercale entre conteudo_overlay e conteudo_split para dinamicidade",
-      "texto": "...",
-      "usar_imagem": true,
-      "termo_pesquisa": "..."
-    },
-    {
-      "slide": "ultimo",
-      "tipo": "cta",
-      "layout": "cta_minimalista",
-      "texto": "Quer dominar [ASSUNTO]?\\n\\nComente [PALAVRA]\\n\\ne receba o acesso no direct!",
-      "usar_imagem": false,
-      "termo_pesquisa": ""
+    if (!geminiRes.ok) {
+      console.error('Gemini API error:', geminiData);
+      return NextResponse.json({ error: 'Erro na API do Gemini', details: geminiData }, { status: 500 });
     }
-  ]
-}
-`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text().trim();
+    const rawText = (geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
 
-    let parsed;
+    if (!rawText) return NextResponse.json({ error: 'Gemini retornou resposta vazia' }, { status: 500 });
+
+    let carrossel;
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('JSON nao encontrado na resposta');
-      parsed = JSON.parse(jsonMatch[0]);
+      carrossel = JSON.parse(rawText);
     } catch {
-      return NextResponse.json({ error: 'Erro ao processar resposta da IA. Tente novamente.' }, { status: 500 });
+      const cleaned = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+      try {
+        carrossel = JSON.parse(cleaned);
+      } catch {
+        const match = cleaned.match(/\{[\s\S]*\}/);
+        if (match) {
+          try {
+            carrossel = JSON.parse(match[0]);
+          } catch {
+            return NextResponse.json({ error: 'JSON invalido do Gemini' }, { status: 500 });
+          }
+        } else {
+          return NextResponse.json({ error: 'JSON invalido do Gemini' }, { status: 500 });
+        }
+      }
     }
 
-    // Busca imagens no Pexels para cada slide em paralelo (silenciosamente)
+    // Busca as imagens no Pexels
     const slidesComImagem = await Promise.all(
-      (parsed.carrossel as Array<{ termo_pesquisa: string; imageUrl?: string | null; [key: string]: unknown }>).map(async (slide) => {
-        const imageUrl = await buscarImagemPexels(slide.termo_pesquisa);
-        return { ...slide, imageUrl };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      carrossel.carrossel.map(async (slide: any) => {
+        if (slide.usar_imagem && slide.termo_pesquisa && slide.termo_pesquisa !== 'none') {
+          const imageUrl = await searchImage(slide.termo_pesquisa);
+          return { ...slide, imageUrl };
+        }
+        return { ...slide, imageUrl: null };
       })
     );
 
     return NextResponse.json({
-      ...parsed,
+      tema_principal: carrossel.tema_principal,
+      numero_de_slides: carrossel.numero_de_slides,
+      palavra_comentario: carrossel.palavra_comentario,
       carrossel: slidesComImagem,
     });
   } catch (error) {
-    console.error('Erro em /api/gerar-ilustrativo:', error);
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+    console.error('Erro na rota gerar-ilustrativo:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erro interno' },
+      { status: 500 }
+    );
   }
 }
