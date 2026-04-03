@@ -19,7 +19,7 @@ const TEMPLATES_PADRAO = [
   { id: 'noticias', icon: '📰', nome: 'Notícias (Urgente)', prompt: 'Você é um jornalista dinâmico. Transforme esta notícia em um carrossel de alto impacto, direto ao ponto, com manchetes escandalosas e foco no que isso impacta a vida do leitor.' },
   { id: 'social_media', icon: '📱', nome: 'Social Media', prompt: 'Você é um especialista em tráfego e criação de conteúdo. Escreva um carrossel dando dicas acionáveis, ferramentas secretas e hacks de algoritmo para crescer no Instagram e TikTok.' },
   { id: 'esportes', icon: '⚽', nome: 'Futebol & Esportes', prompt: 'Você é um comentarista esportivo passional. Crie um carrossel com análises táticas, fofocas de vestiário e opiniões polêmicas sobre o mundo do futebol.' },
-  { id: 'custom', icon: '✨', nome: 'Meu Modelo Customizado', prompt: 'Escreva um carrossel viral com um tom provocativo e bem-humorado.' }
+  { id: 'custom', icon: '✨', nome: 'Criar Novo', prompt: 'Escreva um carrossel viral com um tom provocativo e bem-humorado.' }
 ];
 
 export default function DashboardClient({ user, isPro }: Props) {
@@ -42,7 +42,6 @@ export default function DashboardClient({ user, isPro }: Props) {
     numSlides: '10'
   });
 
-  // CONFIGURAÇÕES COMPLETAS DO ILUSTRATIVO RESTAURADAS
   const [config, setConfig] = useState({
     capa: { fonte: 'Montserrat', tamanho: 'gigante' },
     cards: { fonte: 'Open Sans', tamanho: 'padrao' },
@@ -128,7 +127,6 @@ export default function DashboardClient({ user, isPro }: Props) {
         body: JSON.stringify({ 
           tema,
           modeloPrompt: promptDefinitivo,
-          // CORREÇÃO: Impede que o Ilustrativo puxe a configuração "Sem Imagens" do Twitter
           configImagem: activeTab === 'twitter' ? configTwitter.imagens : 'aleatorio',
           numSlides: activeTab === 'twitter' ? parseInt(configTwitter.numSlides) : 10
         }) 
@@ -248,30 +246,96 @@ export default function DashboardClient({ user, isPro }: Props) {
                       value={tema} onChange={e => setTema(e.target.value)} placeholder="Ex: O segredo por trás do sucesso da..."
                       className="w-full bg-gray-950 border border-gray-800 rounded-2xl px-6 py-5 pr-40 text-lg focus:border-orange-500 outline-none transition-all shadow-2xl"
                     />
-                    <button type="submit" disabled={loading} className="absolute right-3 top-3 bottom-3 bg-orange-500 text-black px-8 rounded-xl font-bold flex items-center gap-2">
+                    <button type="submit" disabled={loading} className="absolute right-3 top-3 bottom-3 bg-orange-500 text-black px-8 rounded-xl font-bold flex items-center gap-2 hover:bg-orange-600 transition-all">
                       {loading ? <Zap className="w-5 h-5 animate-pulse" /> : <Sparkles className="w-5 h-5" />} {loading ? 'Gerando...' : 'Criar'}
                     </button>
                   </div>
-                  <button type="button" onClick={() => setShowSettings(!showSettings)} className={`px-4 rounded-2xl border ${showSettings ? 'bg-gray-800 border-orange-500 text-orange-500' : 'bg-gray-950 border-gray-800 text-gray-400'}`}><Settings2 /></button>
+                  <button type="button" onClick={() => setShowSettings(!showSettings)} className={`px-4 rounded-2xl border transition-all ${showSettings ? 'bg-gray-800 border-orange-500 text-orange-500' : 'bg-gray-950 border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-300'}`}><Settings2 /></button>
                 </form>
 
-                <div className="text-left mt-2">
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-3">Modelos de IA (Selecione o Nicho)</p>
-                  <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                    {TEMPLATES_PADRAO.map(tpl => (
-                      <button 
-                        key={tpl.id} onClick={() => setTemplateAtivo(tpl)}
-                        className={`flex-shrink-0 px-4 py-3 rounded-xl border flex items-center gap-2 transition-all ${templateAtivo.id === tpl.id ? 'bg-orange-500/10 border-orange-500 text-orange-500' : 'bg-gray-900 border-gray-800 text-gray-400 hover:bg-gray-800'}`}
-                      >
-                        <span className="text-lg">{tpl.icon}</span> <span className="font-semibold text-sm whitespace-nowrap">{tpl.nome}</span>
-                      </button>
-                    ))}
+                {/* NOVA GALERIA DE MODELOS EM CARTÕES VISUAIS */}
+                <div className="text-left mt-2 relative">
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-4">Modelos de IA (Selecione o Nicho)</p>
+                  
+                  <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar"> 
+                    {TEMPLATES_PADRAO.map(tpl => {
+                      const isSelected = templateAtivo.id === tpl.id;
+                      const strokeColor = isSelected ? '#F97316' : '#6B7280';
+                      const fillColor = isSelected ? 'rgba(249, 115, 22, 0.1)' : 'rgba(107, 114, 128, 0.05)';
+
+                      const getTemplateCover = () => {
+                        switch (tpl.id) {
+                          case 'business':
+                            return (
+                              <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none">
+                                <path d="M10 90 L10 10 L25 10 L25 90 M35 90 L35 30 L50 30 L50 90 M60 90 L60 50 L75 50 L75 90 M85 90 L85 0 L100 0 L100 90" stroke={strokeColor} strokeWidth="3" fill={fillColor} />
+                                <path d="M10 90 L35 30 L60 50 L85 0" stroke={strokeColor} strokeWidth="5" strokeLinecap="round" />
+                              </svg>
+                            );
+                          case 'noticias':
+                            return (
+                              <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none">
+                                <path d="M5 50 L15 10 L30 80 L45 20 L60 90 L75 40 L90 70" stroke={strokeColor} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M5 50 L15 10 L30 80 L45 20 L60 90 L75 40 L90 70 V100 H5 Z" fill={fillColor} />
+                              </svg>
+                            );
+                          case 'social_media':
+                            return (
+                              <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none">
+                                <circle cx="25" cy="40" r="15" stroke={strokeColor} strokeWidth="4" />
+                                <circle cx="50" cy="65" r="15" stroke={strokeColor} strokeWidth="4" />
+                                <circle cx="75" cy="30" r="15" stroke={strokeColor} strokeWidth="4" fill={strokeColor} />
+                                <path d="M10 65 L90 65" stroke={strokeColor} strokeWidth="2" strokeDasharray="5 5"/>
+                              </svg>
+                            );
+                          case 'esportes':
+                            return (
+                              <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none">
+                                <path d="M0 70 L20 10 L40 90 L60 30 L80 80 L100 20" stroke={strokeColor} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M0 70 L20 10 L40 90 L60 30 L80 80 L100 20 V100 H0 Z" fill={fillColor} />
+                              </svg>
+                            );
+                          case 'custom':
+                            return (
+                              <div className="relative w-full h-full flex items-center justify-center p-4">
+                                <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" className="absolute inset-0 opacity-10">
+                                  <path d="M0 70 L20 10 L40 90 L60 30 L80 80 L100 20 V100 H0 Z" fill="#F97316" />
+                                </svg>
+                                <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${isSelected ? 'bg-orange-500 scale-110' : 'bg-gray-800'}`}>
+                                  <Plus className={`w-10 h-10 ${isSelected ? 'text-black' : 'text-orange-500'}`} strokeWidth={3} />
+                                </div>
+                              </div>
+                            );
+                          default:
+                            return null;
+                        }
+                      };
+
+                      return (
+                        <button
+                          key={tpl.id}
+                          onClick={() => setTemplateAtivo(tpl)}
+                          className={`flex-shrink-0 w-48 rounded-3xl border transition-all overflow-hidden flex flex-col items-stretch text-left group cursor-pointer outline-none ${isSelected ? 'border-orange-500 shadow-xl shadow-orange-500/10' : 'bg-gray-950 border-gray-900 text-gray-400 hover:bg-gray-900 hover:border-gray-800'}`}
+                        >
+                          <div className={`h-32 flex items-center justify-center p-6 transition-colors ${isSelected ? 'bg-orange-500/10' : 'bg-black/50 group-hover:bg-black'}`}>
+                            {getTemplateCover()}
+                          </div>
+                          <div className="p-5 space-y-2 border-t border-gray-900">
+                            <p className={`text-[10px] uppercase tracking-widest font-bold transition-colors ${isSelected ? 'text-orange-500' : 'text-gray-600 group-hover:text-gray-500'}`}>Categoria</p>
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl flex-shrink-0">{tpl.icon}</span>
+                              <span className={`font-semibold text-sm leading-tight transition-colors ${isSelected ? 'text-white' : ''}`}>{tpl.nome}</span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                   
                   {templateAtivo.id === 'custom' && (
-                    <div className="mt-4 p-4 bg-gray-900 border border-gray-800 rounded-xl">
+                    <div className="mt-4 p-4 bg-gray-900 border border-gray-800 rounded-xl animate-in fade-in slide-in-from-top-1">
                       <label className="text-[10px] font-black text-gray-500 uppercase mb-2 block">Edite as instruções do seu modelo</label>
-                      <textarea value={customPromptText} onChange={e => setCustomPromptText(e.target.value)} className="w-full bg-[#111] border border-gray-700 rounded-lg p-3 text-sm text-gray-300 focus:border-orange-500 outline-none h-24 resize-none" />
+                      <textarea value={customPromptText} onChange={e => setCustomPromptText(e.target.value)} className="w-full bg-[#111] border border-gray-700 rounded-lg p-3 text-sm text-gray-300 focus:border-orange-500 outline-none h-24 resize-none custom-scrollbar" />
                     </div>
                   )}
                 </div>
@@ -280,33 +344,32 @@ export default function DashboardClient({ user, isPro }: Props) {
                   <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 text-left animate-in fade-in slide-in-from-top-2 mt-2 shadow-2xl">
                     <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-800">
                       <h4 className="font-bold text-lg text-white">Predefinições ({activeTab})</h4>
-                      <button onClick={salvarConfiguracoesGlobais} className="bg-white text-black px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2"><Save className="w-4 h-4"/> Salvar Padrões</button>
+                      <button onClick={salvarConfiguracoesGlobais} className="bg-white hover:bg-gray-200 text-black px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors"><Save className="w-4 h-4"/> Salvar Padrões</button>
                     </div>
 
                     {activeTab === 'twitter' && (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-gray-500 uppercase">Tema do Card</label>
-                          <select value={configTwitter.temaVisor} onChange={e => setConfigTwitter({...configTwitter, temaVisor: e.target.value})} className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-sm">
+                          <select value={configTwitter.temaVisor} onChange={e => setConfigTwitter({...configTwitter, temaVisor: e.target.value})} className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-500">
                             <option value="light">Claro (Fundo Branco)</option><option value="dark">Escuro (Fundo Preto)</option>
                           </select>
                         </div>
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-gray-500 uppercase">Frequência de Imagens</label>
-                          <select value={configTwitter.imagens} onChange={e => setConfigTwitter({...configTwitter, imagens: e.target.value})} className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-sm">
+                          <select value={configTwitter.imagens} onChange={e => setConfigTwitter({...configTwitter, imagens: e.target.value})} className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-500">
                             <option value="aleatorio">Alguns Cards (Aleatório)</option><option value="sempre">Em Todos os Cards</option><option value="nunca">Sem Imagens (Apenas Texto)</option>
                           </select>
                         </div>
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-gray-500 uppercase">Número Alvo de Slides</label>
-                          <input type="number" min="5" max="20" value={configTwitter.numSlides} onChange={e => setConfigTwitter({...configTwitter, numSlides: e.target.value})} className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-sm" />
+                          <input type="number" min="5" max="20" value={configTwitter.numSlides} onChange={e => setConfigTwitter({...configTwitter, numSlides: e.target.value})} className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-500" />
                         </div>
                       </div>
                     )}
 
                     {activeTab === 'ilustrativo' && (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* RESTAURADO: BLOCO CAPA COMPLETO */}
                         <div className="bg-[#111] border border-gray-800 p-4 rounded-xl space-y-4">
                           <h5 className="font-bold text-orange-500 text-sm uppercase tracking-wider text-center border-b border-gray-800 pb-2">🖼️ Capa</h5>
                           <div className="space-y-2">
@@ -323,7 +386,6 @@ export default function DashboardClient({ user, isPro }: Props) {
                           </div>
                         </div>
 
-                        {/* RESTAURADO: BLOCO CARDS COMPLETO */}
                         <div className="bg-[#111] border border-gray-800 p-4 rounded-xl space-y-4">
                           <h5 className="font-bold text-orange-500 text-sm uppercase tracking-wider text-center border-b border-gray-800 pb-2">📄 Cards</h5>
                           <div className="space-y-2">
@@ -340,7 +402,6 @@ export default function DashboardClient({ user, isPro }: Props) {
                           </div>
                         </div>
 
-                        {/* RESTAURADO: BLOCO CTA COMPLETO */}
                         <div className="bg-[#111] border border-gray-800 p-4 rounded-xl space-y-4">
                           <h5 className="font-bold text-orange-500 text-sm uppercase tracking-wider text-center border-b border-gray-800 pb-2">🎯 CTA</h5>
                           <div className="space-y-2">
@@ -360,26 +421,25 @@ export default function DashboardClient({ user, isPro }: Props) {
                     )}
                   </div>
                 )}
-                {error && <p className="text-red-500 text-sm">{error}</p>}
+                {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
               </div>
             </div>
           )}
 
-          {/* ESTÚDIO (EXIBIÇÃO DOS SLIDES GERADOS) */}
           {carrossel && (
-            <div className="flex flex-col xl:flex-row gap-6 lg:gap-8 items-start animate-in fade-in">
+            <div className="flex flex-col xl:flex-row gap-6 lg:gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500 mt-8">
               <div className="flex-1 w-full space-y-4 lg:space-y-6">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-2">
                   <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
-                    <button onClick={() => setSlideAtual(prev => Math.max(0, prev - 1))} className="p-3 bg-gray-900 rounded-full hover:bg-gray-800 disabled:opacity-20"><ChevronLeft/></button>
+                    <button onClick={() => setSlideAtual(prev => Math.max(0, prev - 1))} className="p-3 bg-gray-900 rounded-full hover:bg-gray-800 disabled:opacity-20 transition-colors"><ChevronLeft/></button>
                     <span className="font-mono text-xs text-gray-500 uppercase tracking-widest">Slide {slideAtual + 1} de {carrossel.numero_de_slides}</span>
-                    <button onClick={() => setSlideAtual(prev => Math.min(carrossel.carrossel.length - 1, prev + 1))} className="p-3 bg-gray-900 rounded-full hover:bg-gray-800 disabled:opacity-20"><ChevronRight/></button>
+                    <button onClick={() => setSlideAtual(prev => Math.min(carrossel.carrossel.length - 1, prev + 1))} className="p-3 bg-gray-900 rounded-full hover:bg-gray-800 disabled:opacity-20 transition-colors"><ChevronRight/></button>
                   </div>
-                  <button onClick={() => setCarrossel(null)} className="px-6 py-2 bg-red-950/30 text-red-500 rounded-lg text-xs font-bold">FECHAR CARROSSEL</button>
+                  <button onClick={() => setCarrossel(null)} className="px-6 py-2 bg-red-950/30 text-red-500 hover:bg-red-900/50 rounded-lg text-xs font-bold transition-colors">FECHAR CARROSSEL</button>
                 </div>
 
-                <div className="aspect-square w-full max-w-[700px] mx-auto bg-gray-950 rounded-[40px] shadow-2xl relative overflow-hidden">
-                  {imgLoading && <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80"><div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div></div>}
+                <div className="aspect-square w-full max-w-[700px] mx-auto bg-gray-950 rounded-[40px] shadow-2xl relative overflow-hidden border border-gray-900">
+                  {imgLoading && <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm"><div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div><p className="text-gray-400 font-bold text-xs uppercase tracking-widest animate-pulse">Renderizando HD...</p></div>}
                   <img 
                     src={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} 
                     className={`w-full h-full object-contain transition-opacity duration-300 ${imgLoading ? 'opacity-0' : 'opacity-100'}`} 
@@ -387,21 +447,27 @@ export default function DashboardClient({ user, isPro }: Props) {
                     onError={() => { setImgLoading(false); if (carrossel.carrossel[slideAtual].usar_imagem) updateSlideAtual({ usar_imagem: false }); }}
                     key={`${slideAtual}-${carrossel.carrossel[slideAtual].usar_imagem}-${configTwitter.temaVisor}-${carrossel.carrossel[slideAtual].posicao_texto}`}
                   />
+                  <div className="absolute inset-0 border-[16px] border-black/5 rounded-[40px] pointer-events-none" />
                 </div>
               </div>
 
-              {/* EDITOR LATERAL RESTAURADO */}
-              <div className="w-full xl:w-[450px] space-y-4">
+              <div className="w-full xl:w-[450px] space-y-4 lg:space-y-6">
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={adicionarSlide} className="bg-gray-900 hover:bg-gray-800 text-gray-300 font-bold py-3 rounded-xl text-xs flex justify-center items-center gap-2"><PlusCircle className="w-4 h-4"/> ADD SLIDE</button>
-                  <button onClick={removerSlide} className="bg-red-950/20 text-red-400 font-bold py-3 rounded-xl text-xs flex justify-center items-center gap-2"><MinusCircle className="w-4 h-4"/> REMOVER</button>
+                  <button onClick={adicionarSlide} className="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 font-bold py-3 rounded-xl text-xs flex justify-center items-center gap-2 transition-colors"><PlusCircle className="w-4 h-4"/> ADD SLIDE</button>
+                  <button onClick={removerSlide} className="bg-red-950/20 hover:bg-red-900/40 border border-red-900/30 text-red-400 font-bold py-3 rounded-xl text-xs flex justify-center items-center gap-2 transition-colors"><MinusCircle className="w-4 h-4"/> REMOVER</button>
                 </div>
 
                 <div className="bg-gray-950 border border-gray-900 rounded-3xl p-6 shadow-xl space-y-4">
-                  <label className="text-[10px] font-black text-gray-600 uppercase">Texto do Slide</label>
-                  <textarea value={carrossel.carrossel[slideAtual].texto} onChange={e => updateSlideAtual({ texto: e.target.value })} className="w-full bg-[#111] border border-gray-800 rounded-xl p-4 text-base h-32 focus:border-orange-500 outline-none resize-none" />
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                    <h4 className="text-sm font-bold uppercase tracking-widest text-gray-400">Editor de Slide</h4>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-600 uppercase">Texto do Slide</label>
+                    <textarea value={carrossel.carrossel[slideAtual].texto} onChange={e => updateSlideAtual({ texto: e.target.value })} className="w-full bg-[#111] border border-gray-800 rounded-xl p-4 text-base h-32 focus:border-orange-500 outline-none resize-none custom-scrollbar" />
+                  </div>
                   
-                  {/* RESTAURADO: BOTÕES DE POSIÇÃO DO TEXTO E PALAVRA DO COMENTÁRIO */}
                   {activeTab === 'ilustrativo' && (
                     <div className="space-y-4 pt-2">
                       <div className="space-y-2">
@@ -424,13 +490,13 @@ export default function DashboardClient({ user, isPro }: Props) {
 
                   <div className="grid grid-cols-2 gap-2 pt-2">
                     <div className="relative w-full">
-                      <button className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl text-xs flex justify-center items-center gap-2"><Upload className="w-4 h-4"/> {fazendoUpload ? '...' : 'UPLOAD'}</button>
+                      <button className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 rounded-xl text-xs flex justify-center items-center gap-2 transition-colors border border-gray-800"><Upload className="w-4 h-4"/> {fazendoUpload ? '...' : 'UPLOAD'}</button>
                       <input type="file" onChange={handleUploadSlideBg} className="absolute inset-0 opacity-0 cursor-pointer" />
                     </div>
-                    <button onClick={() => updateSlideAtual({ usar_imagem: false, imageUrl: null })} className="w-full bg-red-950/20 text-red-400 font-bold py-3 rounded-xl text-xs flex justify-center items-center gap-2"><Trash2 className="w-4 h-4"/> TIRAR IMAGEM</button>
+                    <button onClick={() => updateSlideAtual({ usar_imagem: false, imageUrl: null })} className="w-full bg-red-950/20 hover:bg-red-900/40 border border-red-900/30 text-red-400 font-bold py-3 rounded-xl text-xs flex justify-center items-center gap-2 transition-colors"><Trash2 className="w-4 h-4"/> TIRAR IMAGEM</button>
                   </div>
 
-                  <a href={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} download={`slide-${slideAtual+1}.png`} className="block text-center w-full bg-orange-500 text-black font-black py-4 rounded-xl mt-4">BAIXAR SLIDE</a>
+                  <a href={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} download={`slide-${slideAtual+1}.png`} className="block text-center w-full bg-orange-500 hover:bg-orange-600 text-black font-black py-4 rounded-xl mt-4 transition-colors shadow-lg shadow-orange-500/20">BAIXAR SLIDE</a>
                 </div>
               </div>
             </div>
