@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { 
   Twitter, Image as ImageIcon, User, LogOut, Zap, Clock, Plus, 
-  ChevronLeft, ChevronRight, Download, Upload, Menu, X, Settings2, Trash2, PlusCircle, MinusCircle, Save, Sparkles, BookOpen
+  ChevronLeft, ChevronRight, Download, Upload, Menu, X, Settings2, Trash2, PlusCircle, MinusCircle, Save, Sparkles
 } from 'lucide-react';
 
 interface Slide { slide: number; texto: string; usar_imagem: boolean; termo_pesquisa: string; imageUrl?: string | null; tipo?: string; layout?: string; posicao_texto?: string; }
@@ -14,7 +14,6 @@ interface Props { user: { email: string; id: string }; isPro: boolean; }
 
 const FONTES_DISPONEIS = ['Montserrat', 'Open Sans', 'Nunito Sans', 'League Spartan', 'Kalam', 'Poppins', 'Anton', 'Bebas Neue'];
 
-// MODELOS DE PROMPT
 const TEMPLATES_PADRAO = [
   { id: 'business', icon: '💼', nome: 'Negócios & Cases', prompt: 'Você é um estrategista de negócios experiente. Crie um carrossel analisando casos reais de empresas, focando em lucros, estratégias de marketing e modelos de negócios inovadores.' },
   { id: 'noticias', icon: '📰', nome: 'Notícias (Urgente)', prompt: 'Você é um jornalista dinâmico. Transforme esta notícia em um carrossel de alto impacto, direto ao ponto, com manchetes escandalosas e foco no que isso impacta a vida do leitor.' },
@@ -34,25 +33,22 @@ export default function DashboardClient({ user, isPro }: Props) {
   const [imgLoading, setImgLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   
-  // Controle de Templates
   const [templateAtivo, setTemplateAtivo] = useState(TEMPLATES_PADRAO[0]);
   const [customPromptText, setCustomPromptText] = useState(TEMPLATES_PADRAO[4].prompt);
 
-  // Configurações Twitter
   const [configTwitter, setConfigTwitter] = useState({
-    temaVisor: 'light', // 'light' ou 'dark'
-    imagens: 'aleatorio', // 'sempre', 'nunca', 'aleatorio'
+    temaVisor: 'light', 
+    imagens: 'aleatorio', 
     numSlides: '10'
   });
 
-  // Configurações Ilustrativo
+  // CONFIGURAÇÕES COMPLETAS DO ILUSTRATIVO RESTAURADAS
   const [config, setConfig] = useState({
     capa: { fonte: 'Montserrat', tamanho: 'gigante' },
     cards: { fonte: 'Open Sans', tamanho: 'padrao' },
     cta: { fonte: 'League Spartan', tamanho: 'grande' }
   });
 
-  // Perfil
   const [nome, setNome] = useState('');
   const [arroba, setArroba] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -132,7 +128,8 @@ export default function DashboardClient({ user, isPro }: Props) {
         body: JSON.stringify({ 
           tema,
           modeloPrompt: promptDefinitivo,
-          configImagem: configTwitter.imagens,
+          // CORREÇÃO: Impede que o Ilustrativo puxe a configuração "Sem Imagens" do Twitter
+          configImagem: activeTab === 'twitter' ? configTwitter.imagens : 'aleatorio',
           numSlides: activeTab === 'twitter' ? parseInt(configTwitter.numSlides) : 10
         }) 
       });
@@ -161,7 +158,6 @@ export default function DashboardClient({ user, isPro }: Props) {
     }
 
     const avatarParam = encodeURIComponent(avatarUrl || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png');
-    // NOVO: Passa o tema light/dark para a API do Twitter
     return `/api/og-image?texto=${encodeURIComponent(slide.texto)}&imageUrl=${imgParam}&nome=${nomeParam}&arroba=${arrobaParam}&avatar=${avatarParam}&verified=${isVerified}&tema=${configTwitter.temaVisor}`;
   };
 
@@ -227,11 +223,9 @@ export default function DashboardClient({ user, isPro }: Props) {
 
         <div className="p-4 lg:p-8 max-w-[1600px] mx-auto">
           
-          {/* TELA: PERFIL */}
           {activeTab === 'perfil' && (
             <div className="max-w-4xl bg-gray-950 border border-gray-900 rounded-2xl p-6 lg:p-8 space-y-8">
               <h3 className="text-2xl font-bold">Configurações da Conta</h3>
-              {/* Opções de Perfil Existentes... (mantidas reduzidas por espaço, você já tem essa parte montada) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome" className="w-full bg-[#111] border border-gray-800 rounded-xl px-4 py-3 text-white" />
                 <input value={arroba} onChange={e => setArroba(e.target.value)} placeholder="@arroba" className="w-full bg-[#111] border border-gray-800 rounded-xl px-4 py-3 text-white" />
@@ -240,7 +234,6 @@ export default function DashboardClient({ user, isPro }: Props) {
             </div>
           )}
 
-          {/* GERADOR DE CARROSSEL */}
           {(activeTab === 'twitter' || activeTab === 'ilustrativo') && !carrossel && (
             <div className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-8 py-10">
               <div className="w-20 h-20 bg-orange-500/10 rounded-3xl flex items-center justify-center text-orange-500 mb-2">
@@ -249,7 +242,6 @@ export default function DashboardClient({ user, isPro }: Props) {
               <h3 className="text-3xl font-black">Carrossel {activeTab === 'twitter' ? 'Viral Twitter' : 'Ilustrativo'}</h3>
               
               <div className="w-full max-w-4xl flex flex-col gap-6 px-4">
-                {/* BARRA DE INPUT */}
                 <form onSubmit={handleGenerate} className="flex gap-2">
                   <div className="relative group flex-1">
                     <input 
@@ -263,7 +255,6 @@ export default function DashboardClient({ user, isPro }: Props) {
                   <button type="button" onClick={() => setShowSettings(!showSettings)} className={`px-4 rounded-2xl border ${showSettings ? 'bg-gray-800 border-orange-500 text-orange-500' : 'bg-gray-950 border-gray-800 text-gray-400'}`}><Settings2 /></button>
                 </form>
 
-                {/* GALERIA DE MODELOS DE PROMPT (NOVO) */}
                 <div className="text-left mt-2">
                   <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-3">Modelos de IA (Selecione o Nicho)</p>
                   <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
@@ -285,7 +276,6 @@ export default function DashboardClient({ user, isPro }: Props) {
                   )}
                 </div>
 
-                {/* MODAL DE CONFIGURAÇÕES AVANÇADAS */}
                 {showSettings && (
                   <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 text-left animate-in fade-in slide-in-from-top-2 mt-2 shadow-2xl">
                     <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-800">
@@ -316,10 +306,56 @@ export default function DashboardClient({ user, isPro }: Props) {
 
                     {activeTab === 'ilustrativo' && (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Configurações do Ilustrativo que você já tinha (simplificadas aqui para caber no código) */}
-                        <div className="space-y-2"><label className="text-[10px] font-black text-gray-500 uppercase">Capa: Fonte</label><select value={config.capa.fonte} onChange={e => setConfig({ ...config, capa: { ...config.capa, fonte: e.target.value }})} className="w-full bg-black border border-gray-700 rounded-xl px-3 py-2">{FONTES_DISPONEIS.map(f => <option key={f}>{f}</option>)}</select></div>
-                        <div className="space-y-2"><label className="text-[10px] font-black text-gray-500 uppercase">Cards: Fonte</label><select value={config.cards.fonte} onChange={e => setConfig({ ...config, cards: { ...config.cards, fonte: e.target.value }})} className="w-full bg-black border border-gray-700 rounded-xl px-3 py-2">{FONTES_DISPONEIS.map(f => <option key={f}>{f}</option>)}</select></div>
-                        <div className="space-y-2"><label className="text-[10px] font-black text-gray-500 uppercase">CTA: Fonte</label><select value={config.cta.fonte} onChange={e => setConfig({ ...config, cta: { ...config.cta, fonte: e.target.value }})} className="w-full bg-black border border-gray-700 rounded-xl px-3 py-2">{FONTES_DISPONEIS.map(f => <option key={f}>{f}</option>)}</select></div>
+                        {/* RESTAURADO: BLOCO CAPA COMPLETO */}
+                        <div className="bg-[#111] border border-gray-800 p-4 rounded-xl space-y-4">
+                          <h5 className="font-bold text-orange-500 text-sm uppercase tracking-wider text-center border-b border-gray-800 pb-2">🖼️ Capa</h5>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase">Fonte</label>
+                            <select value={config.capa.fonte} onChange={e => setConfig({ ...config, capa: { ...config.capa, fonte: e.target.value }})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 outline-none">
+                              {FONTES_DISPONEIS.map(f => <option key={f} value={f}>{f}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase">Tamanho</label>
+                            <select value={config.capa.tamanho} onChange={e => setConfig({ ...config, capa: { ...config.capa, tamanho: e.target.value }})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 outline-none">
+                              <option value="padrao">Padrão</option><option value="grande">Grande</option><option value="gigante">Gigante</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* RESTAURADO: BLOCO CARDS COMPLETO */}
+                        <div className="bg-[#111] border border-gray-800 p-4 rounded-xl space-y-4">
+                          <h5 className="font-bold text-orange-500 text-sm uppercase tracking-wider text-center border-b border-gray-800 pb-2">📄 Cards</h5>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase">Fonte</label>
+                            <select value={config.cards.fonte} onChange={e => setConfig({ ...config, cards: { ...config.cards, fonte: e.target.value }})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 outline-none">
+                              {FONTES_DISPONEIS.map(f => <option key={f} value={f}>{f}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase">Tamanho</label>
+                            <select value={config.cards.tamanho} onChange={e => setConfig({ ...config, cards: { ...config.cards, tamanho: e.target.value }})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 outline-none">
+                              <option value="pequeno">Pequeno</option><option value="padrao">Padrão</option><option value="grande">Grande</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* RESTAURADO: BLOCO CTA COMPLETO */}
+                        <div className="bg-[#111] border border-gray-800 p-4 rounded-xl space-y-4">
+                          <h5 className="font-bold text-orange-500 text-sm uppercase tracking-wider text-center border-b border-gray-800 pb-2">🎯 CTA</h5>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase">Fonte</label>
+                            <select value={config.cta.fonte} onChange={e => setConfig({ ...config, cta: { ...config.cta, fonte: e.target.value }})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 outline-none">
+                              {FONTES_DISPONEIS.map(f => <option key={f} value={f}>{f}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase">Tamanho</label>
+                            <select value={config.cta.tamanho} onChange={e => setConfig({ ...config, cta: { ...config.cta, tamanho: e.target.value }})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 outline-none">
+                               <option value="pequeno">Pequeno</option><option value="padrao">Padrão</option><option value="grande">Grande</option><option value="gigante">Gigante</option>
+                            </select>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -333,7 +369,6 @@ export default function DashboardClient({ user, isPro }: Props) {
           {carrossel && (
             <div className="flex flex-col xl:flex-row gap-6 lg:gap-8 items-start animate-in fade-in">
               <div className="flex-1 w-full space-y-4 lg:space-y-6">
-                {/* Controles Superiores: setas, excluir, baixar */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-2">
                   <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
                     <button onClick={() => setSlideAtual(prev => Math.max(0, prev - 1))} className="p-3 bg-gray-900 rounded-full hover:bg-gray-800 disabled:opacity-20"><ChevronLeft/></button>
@@ -350,12 +385,12 @@ export default function DashboardClient({ user, isPro }: Props) {
                     className={`w-full h-full object-contain transition-opacity duration-300 ${imgLoading ? 'opacity-0' : 'opacity-100'}`} 
                     onLoad={() => setImgLoading(false)}
                     onError={() => { setImgLoading(false); if (carrossel.carrossel[slideAtual].usar_imagem) updateSlideAtual({ usar_imagem: false }); }}
-                    key={`${slideAtual}-${carrossel.carrossel[slideAtual].usar_imagem}-${configTwitter.temaVisor}`}
+                    key={`${slideAtual}-${carrossel.carrossel[slideAtual].usar_imagem}-${configTwitter.temaVisor}-${carrossel.carrossel[slideAtual].posicao_texto}`}
                   />
                 </div>
               </div>
 
-              {/* EDITOR LATERAL */}
+              {/* EDITOR LATERAL RESTAURADO */}
               <div className="w-full xl:w-[450px] space-y-4">
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={adicionarSlide} className="bg-gray-900 hover:bg-gray-800 text-gray-300 font-bold py-3 rounded-xl text-xs flex justify-center items-center gap-2"><PlusCircle className="w-4 h-4"/> ADD SLIDE</button>
@@ -366,6 +401,27 @@ export default function DashboardClient({ user, isPro }: Props) {
                   <label className="text-[10px] font-black text-gray-600 uppercase">Texto do Slide</label>
                   <textarea value={carrossel.carrossel[slideAtual].texto} onChange={e => updateSlideAtual({ texto: e.target.value })} className="w-full bg-[#111] border border-gray-800 rounded-xl p-4 text-base h-32 focus:border-orange-500 outline-none resize-none" />
                   
+                  {/* RESTAURADO: BOTÕES DE POSIÇÃO DO TEXTO E PALAVRA DO COMENTÁRIO */}
+                  {activeTab === 'ilustrativo' && (
+                    <div className="space-y-4 pt-2">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-600 uppercase">Alinhamento do Texto</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {['topo', 'centro', 'rodape'].map((pos) => (
+                            <button key={pos} onClick={() => updateSlideAtual({ posicao_texto: pos })} className={`py-2 px-2 lg:px-3 rounded-lg text-[10px] font-bold uppercase transition-all ${(carrossel.carrossel[slideAtual].posicao_texto || 'centro') === pos ? 'bg-orange-500 text-black' : 'bg-[#111111] border border-gray-800 text-gray-400 hover:border-gray-700 hover:text-white'}`}>{pos}</button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {carrossel.carrossel[slideAtual].tipo === 'cta' && (
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-600 uppercase">Palavra do Comentário</label>
+                          <input value={carrossel.palavra_comentario || ''} onChange={e => setCarrossel({...carrossel, palavra_comentario: e.target.value.toUpperCase()})} className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-3 focus:border-orange-500 outline-none" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-2 pt-2">
                     <div className="relative w-full">
                       <button className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl text-xs flex justify-center items-center gap-2"><Upload className="w-4 h-4"/> {fazendoUpload ? '...' : 'UPLOAD'}</button>
