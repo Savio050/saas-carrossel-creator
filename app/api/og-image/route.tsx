@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
 
           {/* ÁREA DE CONTEÚDO: centraliza texto se não há imagem */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: imageData ? 'flex-start' : 'center' }}>
-            <div style={{ fontSize: 52, color: textoCor, lineHeight: 1.45, whiteSpace: 'pre-wrap', textAlign: imageData ? 'left' : 'center', marginBottom: imageData ? '50px' : '0' }}>
+            <div style={{ fontSize: 52, color: textoCor, lineHeight: 1.45, whiteSpace: 'pre-wrap', textAlign: 'left', marginBottom: imageData ? '50px' : '0' }}>
               {texto}
             </div>
 

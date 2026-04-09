@@ -21,6 +21,38 @@ const MODELO_TONE_HINTS: Record<string, string> = {
   minimalist_editorial: 'Tom: jornalístico, imparcial, direto ao fato principal. Zero opiniões, só dados.',
 };
 
+/**
+ * Sanitiza o texto retornado pelo Gemini antes do JSON.parse.
+ * Percorre caractere por caractere e escapa corretamente quebras de linha,
+ * tabulações e retornos de carro que aparecem DENTRO de strings JSON —
+ * o principal motivo de "JSON inválido" quando o modelo gera texto longo.
+ */
+function repairJson(raw: string): string {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+
+    if (escaped) { result += ch; escaped = false; continue; }
+
+    if (ch === '\\' && inString) { result += ch; escaped = true; continue; }
+
+    if (ch === '"') { inString = !inString; result += ch; continue; }
+
+    if (inString) {
+      if      (ch === '\n') { result += '\\n';  continue; }
+      else if (ch === '\r') { result += '\\r';  continue; }
+      else if (ch === '\t') { result += '\\t';  continue; }
+    }
+
+    result += ch;
+  }
+
+  return result;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -63,7 +95,7 @@ Para cada slide defina obrigatoriamente:
 - "alinhamento": "esquerda", "centro" ou "direita"
 - "usar_imagem": true apenas para layouts "fundo_overlay_texto" e "split_horizontal"
 - "termo_pesquisa": em inglês com -stock -watermark, apenas se usar_imagem=true
-- "texto": ${isNichoEspecializado ? 'corpo do slide conforme as regras de narrativa do nicho — pode ter até 3 blocos curtos separados por \\n, sem negrito, sem asterisco' : 'corpo do slide (máx 2 frases curtas, sem negrito, sem asterisco)'}
+- "texto": ${isNichoEspecializado ? 'corpo do slide conforme as regras de narrativa do nicho — até 3 frases curtas em sequência, sem negrito, sem asterisco, sem quebras de linha literais' : 'corpo do slide (máx 2 frases curtas, sem negrito, sem asterisco)'}
 
 Retorne APENAS JSON válido, sem markdown:
 {
@@ -107,14 +139,23 @@ Retorne APENAS JSON válido, sem markdown:
     if (!rawText) return NextResponse.json({ error: 'Gemini retornou resposta vazia' }, { status: 500 });
 
     let carrossel;
-    try { carrossel = JSON.parse(rawText); }
+    const tryParse = (text: string) => JSON.parse(repairJson(text));
+
+    try { carrossel = tryParse(rawText); }
     catch {
-      const cleaned = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
-      try { carrossel = JSON.parse(cleaned); }
+      // Remove blocos de código markdown se presentes
+      const cleaned = rawText
+        .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+      try { carrossel = tryParse(cleaned); }
       catch {
+        // Última tentativa: extrai o primeiro objeto JSON do texto
         const match = cleaned.match(/\{[\s\S]*\}/);
-        if (match) { try { carrossel = JSON.parse(match[0]); } catch { return NextResponse.json({ error: 'JSON invalido do Gemini' }, { status: 500 }); } }
-        else return NextResponse.json({ error: 'JSON invalido do Gemini' }, { status: 500 });
+        if (match) {
+          try { carrossel = tryParse(match[0]); }
+          catch { return NextResponse.json({ error: 'JSON invalido do Gemini' }, { status: 500 }); }
+        } else {
+          return NextResponse.json({ error: 'JSON invalido do Gemini' }, { status: 500 });
+        }
       }
     }
 
