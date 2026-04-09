@@ -62,6 +62,73 @@ const MODELOS_IA: { id: ModeloIA; nome: string; ref: string; descricao: string; 
   { id: 'minimalist_editorial', nome: 'Minimalist Editorial', ref: '@thenews.cc',            descricao: 'Jornalismo limpo. Fatos que retêm atenção.',          img: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&q=80', corDefault: '#1F2937' },
 ];
 
+// ── Nichos Twitter ─────────────────────────────────────────────────────────
+// Cada nicho embute um prompt de sistema específico para o Gemini.
+// Requer a coluna `saved_prompts JSONB DEFAULT '[]'` na tabela `users` do Supabase.
+// SQL: ALTER TABLE users ADD COLUMN IF NOT EXISTS saved_prompts JSONB DEFAULT '[]';
+const NICHES_TWITTER: { id: string; label: string; img: string; prompt: string }[] = [
+  {
+    id: 'negocios',
+    label: 'Negócios',
+    img: 'https://images.pexels.com/photos/3184292/pexels-photo-3184292.jpeg?auto=compress&cs=tinysrgb&w=600',
+    prompt: 'Você é um especialista em negócios, empreendedorismo e estratégia empresarial. Crie carrosséis virais sobre cases reais de sucesso e fracasso de empresas, estratégias de crescimento, liderança e mindset executivo. Cada slide deve entregar um insight concreto que um CEO ou empreendedor usaria imediatamente. Use dados reais, nomes de empresas conhecidas e situações concretas. Tom: direto, impactante, baseado em evidências.',
+  },
+  {
+    id: 'noticias',
+    label: 'Notícias',
+    img: 'https://images.pexels.com/photos/4617292/pexels-photo-4617292.jpeg?auto=compress&cs=tinysrgb&w=600',
+    prompt: 'Você é um jornalista digital especialista em transformar notícias complexas em conteúdo viral. Explique os fatos com precisão e gancho progressivo. Cada slide deve revelar um novo detalhe que prende o leitor. Use a técnica "revelação progressiva" — cada slide é mais impactante que o anterior. Tom: jornalístico, imparcial, manchete que gera curiosidade imediata.',
+  },
+  {
+    id: 'economia',
+    label: 'Economia',
+    img: 'https://images.pexels.com/photos/534216/pexels-photo-534216.jpeg?auto=compress&cs=tinysrgb&w=600',
+    prompt: 'Você é um economista que sabe simplificar conceitos complexos para o público geral. Crie carrosséis sobre economia, mercado financeiro, inflação, investimentos e tendências econômicas. Use analogias do cotidiano para explicar conceitos técnicos. Cada slide deve fazer o leitor entender algo que parecia complicado. Use dados reais e percentuais concretos. Tom: educativo, acessível, baseado em números.',
+  },
+  {
+    id: 'futebol',
+    label: 'Futebol',
+    img: 'https://images.pexels.com/photos/46798/the-ball-stadion-football-the-pitch-46798.jpeg?auto=compress&cs=tinysrgb&w=600',
+    prompt: 'Você é um jornalista esportivo apaixonado com conhecimento profundo de táticas, história e bastidores do futebol. Crie carrosséis sobre análises táticas, histórias épicas de jogos, revelações de bastidores, carreiras de jogadores e curiosidades que poucos sabem. Tom: dramático, apaixonado, com doses de intensidade. Use estatísticas e números para embasar cada afirmação.',
+  },
+  {
+    id: 'socialmedia',
+    label: 'Social Media',
+    img: 'https://images.pexels.com/photos/607812/pexels-photo-607812.jpeg?auto=compress&cs=tinysrgb&w=600',
+    prompt: 'Você é um expert em social media, algoritmos e crescimento orgânico. Crie carrosséis sobre estratégias reais de crescimento nas redes sociais, como o algoritmo funciona, erros que matam o engajamento e táticas que os maiores criadores usam. Tom: prático, direto ao ponto, baseado em dados. Cada slide deve ser uma dica acionável que o leitor pode aplicar hoje.',
+  },
+  {
+    id: 'historia',
+    label: 'História',
+    img: 'https://images.pexels.com/photos/1366919/pexels-photo-1366919.jpeg?auto=compress&cs=tinysrgb&w=600',
+    prompt: 'Você é um historiador apaixonado que sabe contar histórias de forma cinematográfica. Crie carrosséis sobre eventos históricos fascinantes, personagens controversos, segredos que os livros escondem e paralelos entre o passado e o presente. Tom: narrativo, dramático, revelador. Cada slide deve sentir como uma cena de um documentário da Netflix.',
+  },
+  {
+    id: 'tecnologia',
+    label: 'Tecnologia',
+    img: 'https://images.pexels.com/photos/546819/pexels-photo-546819.jpeg?auto=compress&cs=tinysrgb&w=600',
+    prompt: 'Você é um tech writer especialista em tornar tecnologia acessível e fascinante. Crie carrosséis sobre IA, inovações disruptivas, startups que vão mudar o mundo e a tecnologia por trás das coisas que usamos todo dia. Tom: entusiasmado, educativo, com visão de futuro. Use exemplos concretos e explique o impacto real na vida das pessoas.',
+  },
+  {
+    id: 'moda',
+    label: 'Moda',
+    img: 'https://images.pexels.com/photos/934070/pexels-photo-934070.jpeg?auto=compress&cs=tinysrgb&w=600',
+    prompt: 'Você é um editor de moda com olhar aguçado para tendências e cultura. Crie carrosséis sobre tendências que vão dominar a temporada, a história por trás de peças icônicas, dicas de styling que democratizam a moda e os bastidores da indústria fashion. Tom: sofisticado mas acessível, visual e inspirador. Faça o leitor sentir que está descobrindo segredos do mundo da moda.',
+  },
+  {
+    id: 'academia',
+    label: 'Academia',
+    img: 'https://images.pexels.com/photos/841130/pexels-photo-841130.jpeg?auto=compress&cs=tinysrgb&w=600',
+    prompt: 'Você é um personal trainer e nutricionista especialista em alta performance. Crie carrosséis sobre treinos eficientes, nutrição baseada em ciência, recuperação e mentalidade de atleta. Desminta mitos comuns da academia com evidências científicas. Tom: motivador, baseado em ciência, prático. Cada slide deve ser uma revelação ou dica que o leitor aplica no próximo treino.',
+  },
+  {
+    id: 'politica',
+    label: 'Política',
+    img: 'https://images.pexels.com/photos/1550337/pexels-photo-1550337.jpeg?auto=compress&cs=tinysrgb&w=600',
+    prompt: 'Você é um analista político que traduz política complexa para o cidadão comum. Crie carrosséis sobre votações, projetos de lei, bastidores do poder, histórias de ascensão e queda de líderes e conexões que a mídia não mostra. Tom: analítico, imparcial, revelador. Explique "o que isso significa para você" em cada slide.',
+  },
+];
+
 const FORMATO_META: Record<string, { label: string; icon: React.ReactNode; desc: string }> = {
   twitter:    { label: 'Twitter Style',  icon: <Twitter className="w-5 h-5" />,    desc: 'Cards no estilo tweet, personalizados com seu perfil.' },
   ilustrativo:{ label: 'Ilustrativo',    icon: <ImageIcon className="w-5 h-5" />,  desc: 'Imagem de fundo com texto sobreposto cinematográfico.' },
@@ -82,6 +149,12 @@ export default function DashboardClient({ user, isPro }: Props) {
   const [showSettings, setShowSettings]       = useState(false);
   const [customPromptText, setCustomPromptText] = useState('');
   const [showCustomPrompt, setShowCustomPrompt] = useState(false);
+  const [selectedNicheId, setSelectedNicheId]   = useState<string | null>(null);
+  const [savedPrompts, setSavedPrompts]         = useState<{ id: string; name: string; prompt: string }[]>([]);
+  const [showSaveModal, setShowSaveModal]       = useState(false);
+  const [newPromptName, setNewPromptName]       = useState('');
+  const [savingPrompt, setSavingPrompt]         = useState(false);
+  const [downloadingAll, setDownloadingAll]     = useState(false);
 
   const [configTwitter, setConfigTwitter] = useState({ temaVisor: 'light', imagens: 'aleatorio', numSlides: '10' });
 
@@ -119,8 +192,14 @@ export default function DashboardClient({ user, isPro }: Props) {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from('users').select('nome, arroba, avatar_url, is_verified').eq('id', user.id).single();
-      if (data) { setNome(data.nome || ''); setArroba(data.arroba || ''); setAvatarUrl(data.avatar_url || ''); setIsVerified(data.is_verified || false); }
+      const { data } = await supabase.from('users').select('nome, arroba, avatar_url, is_verified, saved_prompts').eq('id', user.id).single();
+      if (data) {
+        setNome(data.nome || '');
+        setArroba(data.arroba || '');
+        setAvatarUrl(data.avatar_url || '');
+        setIsVerified(data.is_verified || false);
+        if (Array.isArray(data.saved_prompts)) setSavedPrompts(data.saved_prompts);
+      }
       const sc = localStorage.getItem('configIlustrativo'); if (sc) setConfig(JSON.parse(sc));
       const st = localStorage.getItem('configTwitter');     if (st) setConfigTwitter(JSON.parse(st));
       const sp = localStorage.getItem('customPrompt');      if (sp) setCustomPromptText(sp);
@@ -181,6 +260,46 @@ export default function DashboardClient({ user, isPro }: Props) {
   const handleUploadAvatar   = async (e: React.ChangeEvent<HTMLInputElement>) => { const u = await handleUploadGeneric(e); if (u) { setAvatarUrl(u); await supabase.from('users').update({ avatar_url: u }).eq('id', user.id); } };
   const handleUploadSlideBg  = async (e: React.ChangeEvent<HTMLInputElement>) => { const u = await handleUploadGeneric(e); if (u) updateSlideAtual({ usar_imagem: true, imageUrl: u }); };
 
+  const handleSavePrompt = async () => {
+    if (!newPromptName.trim() || !customPromptText.trim()) return;
+    setSavingPrompt(true);
+    const newEntry = { id: crypto.randomUUID(), name: newPromptName.trim(), prompt: customPromptText.trim() };
+    const updated  = [...savedPrompts, newEntry];
+    try {
+      await supabase.from('users').update({ saved_prompts: updated } as never).eq('id', user.id);
+      setSavedPrompts(updated);
+      setNewPromptName('');
+      setShowSaveModal(false);
+    } catch { /* silently ignore if column doesn't exist yet */ }
+    finally { setSavingPrompt(false); }
+  };
+
+  const handleDeletePrompt = async (id: string) => {
+    const updated = savedPrompts.filter(p => p.id !== id);
+    await supabase.from('users').update({ saved_prompts: updated } as never).eq('id', user.id);
+    setSavedPrompts(updated);
+    if (selectedNicheId === `custom:${id}`) setSelectedNicheId(null);
+  };
+
+  const handleDownloadAll = async () => {
+    if (!carrossel) return;
+    setDownloadingAll(true);
+    for (let i = 0; i < carrossel.carrossel.length; i++) {
+      const url = getSlideImageUrl(carrossel.carrossel[i], carrossel);
+      try {
+        const res  = await fetch(url);
+        const blob = await res.blob();
+        const a    = document.createElement('a');
+        a.href     = URL.createObjectURL(blob);
+        a.download = `slide-${i + 1}.png`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch { /* skip on error */ }
+      await new Promise(r => setTimeout(r, 400));
+    }
+    setDownloadingAll(false);
+  };
+
   const salvarConfiguracoesGlobais = () => {
     localStorage.setItem('configIlustrativo', JSON.stringify(config));
     localStorage.setItem('configTwitter', JSON.stringify(configTwitter));
@@ -204,7 +323,21 @@ export default function DashboardClient({ user, isPro }: Props) {
           formato: activeTab,
           configImagem: activeTab === 'twitter' ? configTwitter.imagens : 'aleatorio',
           numSlides: activeTab === 'twitter' ? parseInt(configTwitter.numSlides) : configGlobal.num_slides,
-          customPrompt: showCustomPrompt && customPromptText ? customPromptText : undefined,
+          customPrompt: (() => {
+            if (activeTab === 'twitter') {
+              // Prompt personalizado do usuário tem prioridade máxima
+              if (showCustomPrompt && customPromptText) return customPromptText;
+              // GEM salvo selecionado
+              if (selectedNicheId?.startsWith('custom:')) {
+                const id = selectedNicheId.replace('custom:', '');
+                return savedPrompts.find(p => p.id === id)?.prompt;
+              }
+              // Nicho pré-definido
+              if (selectedNicheId) return NICHES_TWITTER.find(n => n.id === selectedNicheId)?.prompt;
+              return undefined;
+            }
+            return showCustomPrompt && customPromptText ? customPromptText : undefined;
+          })(),
         }),
       });
       const data = await res.json();
@@ -449,39 +582,110 @@ export default function DashboardClient({ user, isPro }: Props) {
                   </button>
                 </form>
 
-                {/* Modelo de IA cards */}
-                <div className="text-left">
-                  <p className="text-[10px] uppercase tracking-widest text-white/25 font-medium mb-3">Modelo de IA · Estética Visual</p>
-                  <div className="flex gap-3 overflow-x-auto pb-2">
-                    {MODELOS_IA.map(m => {
-                      const sel = configGlobal.modelo_ia === m.id;
-                      return (
-                        <button key={m.id} onClick={() => setConfigGlobal({ ...configGlobal, modelo_ia: m.id, cor_primaria_marca: m.corDefault })} className={`flex-shrink-0 w-44 rounded-2xl overflow-hidden flex flex-col transition-all outline-none group ${sel ? 'ring-1 ring-white/25 shadow-lg shadow-black/50' : 'opacity-55 hover:opacity-85'}`}>
-                          <div className="h-28 relative overflow-hidden">
-                            <img src={m.img} alt={m.nome} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                            {sel && <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center"><Check className="w-3 h-3 text-black" strokeWidth={3} /></div>}
-                          </div>
-                          <div className="p-3 text-left border-t border-white/5" style={{ background: 'rgba(8,8,15,0.95)' }}>
-                            <p className={`text-[9px] uppercase tracking-widest font-medium mb-0.5 ${sel ? 'text-white/50' : 'text-white/20'}`}>{m.ref}</p>
-                            <p className={`text-xs font-light leading-tight ${sel ? 'text-white/70' : 'text-white/35'}`}>{m.nome}</p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                {/* ── Twitter: Grade de Nichos ── */}
+                {activeTab === 'twitter' && (
+                  <div className="text-left space-y-4">
+                    <p className="text-sm font-light text-white/60">Escolha um modelo inteligente de acordo com seu nicho:</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                      {NICHES_TWITTER.map(n => {
+                        const sel = selectedNicheId === n.id;
+                        return (
+                          <button key={n.id} onClick={() => { setSelectedNicheId(sel ? null : n.id); setShowCustomPrompt(false); }}
+                            className={`relative rounded-2xl overflow-hidden aspect-[4/3] group transition-all outline-none ${sel ? 'ring-2 ring-white/40 shadow-lg shadow-black/50' : 'opacity-60 hover:opacity-90'}`}>
+                            <img src={n.img} alt={n.label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                            {sel && (
+                              <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow">
+                                <Check className="w-3 h-3 text-black" strokeWidth={3} />
+                              </div>
+                            )}
+                            <span className="absolute bottom-2.5 left-3 right-3 text-left text-xs font-semibold text-white leading-tight">{n.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                {/* Custom prompt */}
+                    {/* ── GEMs Personalizados salvos ── */}
+                    {savedPrompts.length > 0 && (
+                      <div className="space-y-2 pt-2">
+                        <p className="text-[10px] uppercase tracking-widest text-white/25 font-medium">Meus Modelos</p>
+                        <div className="flex flex-wrap gap-2">
+                          {savedPrompts.map(p => {
+                            const sel = selectedNicheId === `custom:${p.id}`;
+                            return (
+                              <div key={p.id} className={`group flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all ${sel ? 'bg-white/12 border-white/25 text-white/80' : 'bg-white/[0.03] border-white/8 text-white/40 hover:border-white/15 hover:text-white/60'}`}>
+                                <button onClick={() => { setSelectedNicheId(sel ? null : `custom:${p.id}`); setShowCustomPrompt(false); }} className="font-light">{p.name}</button>
+                                <button onClick={() => handleDeletePrompt(p.id)} className="opacity-0 group-hover:opacity-100 text-red-400/50 hover:text-red-400/80 transition-all ml-1">
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Outros formatos: Modelo de IA clássico ── */}
+                {activeTab !== 'twitter' && (
+                  <div className="text-left">
+                    <p className="text-[10px] uppercase tracking-widest text-white/25 font-medium mb-3">Modelo de IA · Estética Visual</p>
+                    <div className="flex gap-3 overflow-x-auto pb-2">
+                      {MODELOS_IA.map(m => {
+                        const sel = configGlobal.modelo_ia === m.id;
+                        return (
+                          <button key={m.id} onClick={() => setConfigGlobal({ ...configGlobal, modelo_ia: m.id, cor_primaria_marca: m.corDefault })} className={`flex-shrink-0 w-44 rounded-2xl overflow-hidden flex flex-col transition-all outline-none group ${sel ? 'ring-1 ring-white/25 shadow-lg shadow-black/50' : 'opacity-55 hover:opacity-85'}`}>
+                            <div className="h-28 relative overflow-hidden">
+                              <img src={m.img} alt={m.nome} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                              {sel && <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center"><Check className="w-3 h-3 text-black" strokeWidth={3} /></div>}
+                            </div>
+                            <div className="p-3 text-left border-t border-white/5" style={{ background: 'rgba(8,8,15,0.95)' }}>
+                              <p className={`text-[9px] uppercase tracking-widest font-medium mb-0.5 ${sel ? 'text-white/50' : 'text-white/20'}`}>{m.ref}</p>
+                              <p className={`text-xs font-light leading-tight ${sel ? 'text-white/70' : 'text-white/35'}`}>{m.nome}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Prompt personalizado (avançado) ── */}
                 <div className="text-left">
-                  <button onClick={() => setShowCustomPrompt(v => !v)} className="text-[10px] text-white/25 hover:text-white/50 transition-colors uppercase tracking-widest font-medium flex items-center gap-1.5">
+                  <button onClick={() => { setShowCustomPrompt(v => !v); if (!showCustomPrompt) setSelectedNicheId(null); }}
+                    className="text-[10px] text-white/25 hover:text-white/50 transition-colors uppercase tracking-widest font-medium flex items-center gap-1.5">
                     <Plus className={`w-3 h-3 transition-transform ${showCustomPrompt ? 'rotate-45' : ''}`} />
                     Prompt personalizado (avançado)
                   </button>
                   {showCustomPrompt && (
-                    <div className="mt-3 rounded-2xl border border-white/8 p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                      <label className="text-[10px] font-medium text-white/25 uppercase tracking-widest block mb-2">Instruções extras para o Gemini</label>
-                      <textarea value={customPromptText} onChange={e => setCustomPromptText(e.target.value)} className="w-full bg-white/5 border border-white/8 rounded-xl p-3 text-sm text-white/55 font-light focus:border-white/15 outline-none h-20 resize-none" placeholder="Você é um especialista em..." />
+                    <div className="mt-3 rounded-2xl border border-white/8 p-4 space-y-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                      <label className="text-[10px] font-medium text-white/25 uppercase tracking-widest block">Instruções extras para o Gemini</label>
+                      <textarea value={customPromptText} onChange={e => setCustomPromptText(e.target.value)}
+                        className="w-full bg-white/5 border border-white/8 rounded-xl p-3 text-sm text-white/55 font-light focus:border-white/15 outline-none h-24 resize-none"
+                        placeholder="Você é um especialista em..." />
+                      {/* Salvar como GEM personalizado */}
+                      {activeTab === 'twitter' && customPromptText.trim() && (
+                        showSaveModal ? (
+                          <div className="flex gap-2 items-center">
+                            <input value={newPromptName} onChange={e => setNewPromptName(e.target.value)}
+                              placeholder="Nome do modelo..." maxLength={30}
+                              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white/65 font-light focus:border-white/20 outline-none" />
+                            <button onClick={handleSavePrompt} disabled={savingPrompt || !newPromptName.trim()}
+                              className="bg-white/10 hover:bg-white/15 disabled:opacity-40 border border-white/15 text-white/60 px-3 py-2 rounded-xl text-xs font-light transition-colors flex-shrink-0">
+                              {savingPrompt ? '...' : 'Salvar'}
+                            </button>
+                            <button onClick={() => { setShowSaveModal(false); setNewPromptName(''); }}
+                              className="text-white/20 hover:text-white/50 transition-colors flex-shrink-0"><X className="w-4 h-4" /></button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setShowSaveModal(true)}
+                            className="flex items-center gap-1.5 text-[10px] text-white/30 hover:text-white/55 transition-colors uppercase tracking-widest font-medium">
+                            <Save className="w-3 h-3" /> Salvar como Meu Modelo
+                          </button>
+                        )
+                      )}
                     </div>
                   )}
                 </div>
@@ -570,7 +774,17 @@ export default function DashboardClient({ user, isPro }: Props) {
                     <span className="font-mono text-xs text-white/30 uppercase tracking-widest">{slideAtual + 1} / {carrossel.numero_de_slides}</span>
                     <button onClick={() => setSlideAtual(p => Math.min(carrossel.carrossel.length - 1, p + 1))} disabled={slideAtual === carrossel.carrossel.length - 1} className="p-2.5 bg-white/5 rounded-xl hover:bg-white/8 border border-white/8 disabled:opacity-20 transition-colors"><ChevronRight className="w-5 h-5 text-white/50" /></button>
                   </div>
-                  <button onClick={() => setCarrossel(null)} className="px-5 py-2 text-white/25 hover:text-white/55 rounded-xl text-xs font-light border border-white/5 hover:border-white/10 transition-colors">← Novo carrossel</button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleDownloadAll}
+                      disabled={downloadingAll}
+                      className="px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ background: downloadingAll ? 'rgba(34,197,94,0.15)' : 'rgba(34,197,94,0.2)', border: '1px solid rgba(34,197,94,0.35)', color: downloadingAll ? 'rgba(134,239,172,0.6)' : 'rgba(134,239,172,0.9)' }}>
+                      {downloadingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                      {downloadingAll ? 'Baixando...' : 'Baixar Tudo'}
+                    </button>
+                    <button onClick={() => setCarrossel(null)} className="px-5 py-2 text-white/25 hover:text-white/55 rounded-xl text-xs font-light border border-white/5 hover:border-white/10 transition-colors">← Novo carrossel</button>
+                  </div>
                 </div>
 
                 <div className="aspect-square w-full max-w-[640px] mx-auto rounded-[32px] relative overflow-hidden border border-white/8 shadow-2xl shadow-black/60" style={{ background: 'rgba(255,255,255,0.02)' }}>
@@ -612,9 +826,26 @@ export default function DashboardClient({ user, isPro }: Props) {
 
                   {/* Twitter */}
                   {activeTab === 'twitter' && (
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-medium text-white/25 uppercase tracking-widest">Texto do Slide</label>
-                      <textarea value={carrossel.carrossel[slideAtual].texto} onChange={e => updateSlideAtual({ texto: e.target.value })} className="w-full bg-white/5 border border-white/8 rounded-xl p-4 text-sm text-white/65 font-light h-32 focus:border-white/15 outline-none resize-none" />
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-medium text-white/25 uppercase tracking-widest">Texto do Slide</label>
+                        <textarea value={carrossel.carrossel[slideAtual].texto} onChange={e => updateSlideAtual({ texto: e.target.value })} className="w-full bg-white/5 border border-white/8 rounded-xl p-4 text-sm text-white/65 font-light h-32 focus:border-white/15 outline-none resize-none" />
+                      </div>
+                      {/* Controles de imagem para Twitter */}
+                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
+                        <label className="relative cursor-pointer">
+                          <span className="w-full bg-white/5 hover:bg-white/8 border border-white/8 text-white/40 font-light py-2.5 rounded-xl text-xs flex justify-center items-center gap-2 transition-colors">
+                            <Upload className="w-3.5 h-3.5" /> {fazendoUpload ? '...' : 'Inserir Imagem'}
+                          </span>
+                          <input type="file" accept="image/*" onChange={handleUploadSlideBg} className="absolute inset-0 opacity-0 w-0 h-0" />
+                        </label>
+                        <button
+                          onClick={() => updateSlideAtual({ usar_imagem: false, imageUrl: null })}
+                          disabled={!carrossel.carrossel[slideAtual].usar_imagem && !carrossel.carrossel[slideAtual].imageUrl}
+                          className="bg-red-500/5 hover:bg-red-500/8 disabled:opacity-30 disabled:cursor-not-allowed border border-red-500/10 text-red-400/40 font-light py-2.5 rounded-xl text-xs flex justify-center items-center gap-2 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" /> Remover Imagem
+                        </button>
+                      </div>
                     </div>
                   )}
 

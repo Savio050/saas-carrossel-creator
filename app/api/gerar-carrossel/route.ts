@@ -3,13 +3,13 @@ import { createClient } from '@/lib/supabase/server';
 
 async function searchImage(query: string): Promise<string | null> {
   try {
-    const res = await fetch('https://google.serper.dev/images', {
-      method: 'POST',
-      headers: { 'X-API-KEY': process.env.SERPER_API_KEY!, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ q: query, num: 3 }),
-    });
+    const res = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=3&orientation=landscape`,
+      { headers: { Authorization: process.env.PEXELS_API_KEY || '' }, signal: AbortSignal.timeout(5000) }
+    );
+    if (!res.ok) return null;
     const data = await res.json();
-    return data.images?.[0]?.imageUrl ?? null;
+    return data.photos?.[0]?.src?.large ?? null;
   } catch { return null; }
 }
 

@@ -39,9 +39,9 @@ export async function GET(req: NextRequest) {
     return new ImageResponse(
       (
         <div style={{ width: W, height: H, display: 'flex', flexDirection: 'column', backgroundColor: bgCor, padding: '80px', fontFamily: 'sans-serif' }}>
-          
+
           {/* HEADER DO TWITTER */}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '40px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '48px' }}>
             <img src={avatar} style={{ width: 120, height: 120, borderRadius: '50%', marginRight: '30px', objectFit: 'cover' }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -56,17 +56,19 @@ export async function GET(req: NextRequest) {
             </div>
           </div>
 
-          {/* TEXTO */}
-          <div style={{ fontSize: 52, color: textoCor, lineHeight: 1.4, whiteSpace: 'pre-wrap', marginBottom: imageData ? '50px' : '0' }}>
-            {texto}
-          </div>
-
-          {/* IMAGEM OPCIONAL */}
-          {imageData && (
-            <div style={{ display: 'flex', width: '100%', flex: 1, borderRadius: '40px', overflow: 'hidden', border: `2px solid ${bordaCor}` }}>
-              <img src={imageData} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          {/* ÁREA DE CONTEÚDO: centraliza texto se não há imagem */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: imageData ? 'flex-start' : 'center' }}>
+            <div style={{ fontSize: 52, color: textoCor, lineHeight: 1.45, whiteSpace: 'pre-wrap', textAlign: imageData ? 'left' : 'center', marginBottom: imageData ? '50px' : '0' }}>
+              {texto}
             </div>
-          )}
+
+            {/* IMAGEM OPCIONAL */}
+            {imageData && (
+              <div style={{ display: 'flex', flex: 1, borderRadius: '40px', overflow: 'hidden', border: `2px solid ${bordaCor}` }}>
+                <img src={imageData} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            )}
+          </div>
         </div>
       ), { width: W, height: H }
     );
