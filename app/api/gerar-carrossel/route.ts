@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { fetchSearchContext, parseGeminiJson } from '@/lib/gemini-utils';
 
 async function searchImage(query: string): Promise<string | null> {
   try {
@@ -21,38 +22,6 @@ const MODELO_TONE_HINTS: Record<string, string> = {
   minimalist_editorial: 'Tom: jornalístico, imparcial, direto ao fato principal. Zero opiniões, só dados.',
 };
 
-/**
- * Sanitiza o texto retornado pelo Gemini antes do JSON.parse.
- * Percorre caractere por caractere e escapa corretamente quebras de linha,
- * tabulações e retornos de carro que aparecem DENTRO de strings JSON —
- * o principal motivo de "JSON inválido" quando o modelo gera texto longo.
- */
-function repairJson(raw: string): string {
-  let result = '';
-  let inString = false;
-  let escaped = false;
-
-  for (let i = 0; i < raw.length; i++) {
-    const ch = raw[i];
-
-    if (escaped) { result += ch; escaped = false; continue; }
-
-    if (ch === '\\' && inString) { result += ch; escaped = true; continue; }
-
-    if (ch === '"') { inString = !inString; result += ch; continue; }
-
-    if (inString) {
-      if      (ch === '\n') { result += '\\n';  continue; }
-      else if (ch === '\r') { result += '\\r';  continue; }
-      else if (ch === '\t') { result += '\\t';  continue; }
-    }
-
-    result += ch;
-  }
-
-  return result;
-}
-
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -65,18 +34,22 @@ export async function POST(req: NextRequest) {
     const { tema, modelo_ia, configImagem, numSlides, customPrompt } = await req.json();
     if (!tema) return NextResponse.json({ error: 'Tema obrigatorio' }, { status: 400 });
 
+    // ── 1. Busca de contexto real via Serper (em paralelo com nada, não bloqueia) ──
+    const contextoPesquisa = await fetchSearchContext(tema);
+
     let regraImagens = '30% dos slides sem imagem.';
     if (configImagem === 'sempre') regraImagens = 'TODOS os slides DEVEM ter usar_imagem como true.';
     if (configImagem === 'nunca')  regraImagens = 'TODOS os slides DEVEM ter usar_imagem como false.';
 
-    const toneHint  = modelo_ia ? (MODELO_TONE_HINTS[modelo_ia] ?? '') : '';
-    const basePrompt = customPrompt || 'Você é um copywriter de elite especialista em carrosséis virais para Instagram.';
-
-    // Quando há customPrompt (nicho especializado), permitir textos mais ricos e títulos de capa completos
+    const toneHint         = modelo_ia ? (MODELO_TONE_HINTS[modelo_ia] ?? '') : '';
+    const basePrompt       = customPrompt || 'Você é um copywriter de elite especialista em carrosséis virais para Instagram.';
     const isNichoEspecializado = !!customPrompt;
 
+    // ── 2. System prompt ───────────────────────────────────────────────────
     const systemPrompt = `${basePrompt}
 ${toneHint ? `\nDIRETIVA DE TOM OBRIGATÓRIA: ${toneHint}\n` : ''}
+REGRA DE FACTUALIDADE OBRIGATÓRIA: O usuário fornecerá o tema e, quando disponível, um bloco de CONTEXTO REAL com dados verificados da web. Use esses dados como base factual primária. Não invente placares, datas, nomes, estatísticas ou fatos que não estejam no contexto ou que você não tenha certeza absoluta. Em caso de dúvida, omita o dado específico e foque na análise.
+
 Escreva EXATAMENTE ${numSlides || 10} slides sobre o tema fornecido.
 A regra para imagens é: ${regraImagens}
 
@@ -95,7 +68,7 @@ Para cada slide defina obrigatoriamente:
 - "alinhamento": "esquerda", "centro" ou "direita"
 - "usar_imagem": true apenas para layouts "fundo_overlay_texto" e "split_horizontal"
 - "termo_pesquisa": em inglês com -stock -watermark, apenas se usar_imagem=true
-- "texto": ${isNichoEspecializado ? 'corpo do slide conforme as regras de narrativa do nicho — até 3 frases curtas em sequência, sem negrito, sem asterisco, sem quebras de linha literais' : 'corpo do slide (máx 2 frases curtas, sem negrito, sem asterisco)'}
+- "texto": ${isNichoEspecializado ? 'corpo do slide conforme as regras de narrativa do nicho — até 3 frases curtas em sequência, sem negrito, sem asterisco' : 'corpo do slide (máx 2 frases curtas, sem negrito, sem asterisco)'}
 
 Retorne APENAS JSON válido, sem markdown:
 {
@@ -115,6 +88,12 @@ Retorne APENAS JSON válido, sem markdown:
   ]
 }`;
 
+    // ── 3. Mensagem do usuário: tema + contexto real ───────────────────────
+    const userMessage = contextoPesquisa
+      ? `Tema: ${tema}\n\n${contextoPesquisa}`
+      : `Tema: ${tema}`;
+
+    // ── 4. Geração via Gemini ──────────────────────────────────────────────
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
@@ -122,7 +101,7 @@ Retorne APENAS JSON válido, sem markdown:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ parts: [{ text: `Tema: ${tema}` }] }],
+          contents: [{ parts: [{ text: userMessage }] }],
           generationConfig: {
             temperature: modelo_ia === 'minimalist_editorial' ? 0.6 : 0.9,
             maxOutputTokens: 4096,
@@ -138,29 +117,14 @@ Retorne APENAS JSON válido, sem markdown:
     const rawText = (geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
     if (!rawText) return NextResponse.json({ error: 'Gemini retornou resposta vazia' }, { status: 500 });
 
+    // ── 5. Parse robusto ───────────────────────────────────────────────────
     let carrossel;
-    const tryParse = (text: string) => JSON.parse(repairJson(text));
+    try { carrossel = parseGeminiJson(rawText); }
+    catch { return NextResponse.json({ error: 'JSON invalido do Gemini' }, { status: 500 }); }
 
-    try { carrossel = tryParse(rawText); }
-    catch {
-      // Remove blocos de código markdown se presentes
-      const cleaned = rawText
-        .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
-      try { carrossel = tryParse(cleaned); }
-      catch {
-        // Última tentativa: extrai o primeiro objeto JSON do texto
-        const match = cleaned.match(/\{[\s\S]*\}/);
-        if (match) {
-          try { carrossel = tryParse(match[0]); }
-          catch { return NextResponse.json({ error: 'JSON invalido do Gemini' }, { status: 500 }); }
-        } else {
-          return NextResponse.json({ error: 'JSON invalido do Gemini' }, { status: 500 });
-        }
-      }
-    }
-
+    // ── 6. Busca de imagens nos slides ─────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const slidesComImagem = await Promise.all(carrossel.carrossel.map(async (slide: any) => {
+    const slidesComImagem = await Promise.all((carrossel as any).carrossel.map(async (slide: any) => {
       if (slide.usar_imagem && slide.termo_pesquisa && slide.termo_pesquisa !== 'none') {
         const imageUrl = await searchImage(slide.termo_pesquisa);
         return { ...slide, imageUrl };
@@ -168,7 +132,8 @@ Retorne APENAS JSON válido, sem markdown:
       return { ...slide, imageUrl: null };
     }));
 
-    return NextResponse.json({ ...carrossel, carrossel: slidesComImagem });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return NextResponse.json({ ...(carrossel as any), carrossel: slidesComImagem });
   } catch (error) {
     console.error('Erro inesperado:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });

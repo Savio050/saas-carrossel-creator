@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { fetchSearchContext, parseGeminiJson } from '@/lib/gemini-utils';
 
 // ── Prompts de Copywriting por Modelo (Formato: Citação) ──────────────────
 const MODELO_PROMPTS: Record<string, string> = {
@@ -52,12 +53,17 @@ export async function POST(req: NextRequest) {
     const { tema, modelo_ia, numSlides, customPrompt } = await req.json();
     if (!tema) return NextResponse.json({ error: 'Tema obrigatorio' }, { status: 400 });
 
+    // Busca de contexto real via Serper
+    const contextoPesquisa = await fetchSearchContext(tema);
+
     const qtdSlides = numSlides || 10;
     const basePrompt = customPrompt || 'Você é um curador de frases e citações de elite para Instagram.';
     const modeloPrompt = MODELO_PROMPTS[modelo_ia] ?? '';
 
     const systemPrompt = `${basePrompt}
 ${modeloPrompt}
+
+REGRA DE FACTUALIDADE OBRIGATÓRIA: Quando um bloco de CONTEXTO REAL for fornecido junto ao tema, use-o como base factual primária. Não atribua citações falsas a pessoas reais. Se for usar citação de alguém específico, ela deve ser real e verificável.
 
 INSTRUÇÕES DE ESTRUTURA (não sobrescreva as regras do Modelo acima):
 - Escreva EXATAMENTE ${qtdSlides} slides sobre o tema fornecido.
@@ -91,7 +97,7 @@ Retorne APENAS JSON válido, sem markdown:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ parts: [{ text: `Tema: ${tema}` }] }],
+          contents: [{ parts: [{ text: contextoPesquisa ? `Tema: ${tema}\n\n${contextoPesquisa}` : `Tema: ${tema}` }] }],
           generationConfig: {
             temperature: modelo_ia === 'minimalist_editorial' ? 0.5 : 0.85,
             maxOutputTokens: 4096,
@@ -108,16 +114,8 @@ Retorne APENAS JSON válido, sem markdown:
     if (!rawText) return NextResponse.json({ error: 'Gemini retornou resposta vazia' }, { status: 500 });
 
     let carrossel;
-    try { carrossel = JSON.parse(rawText); }
-    catch {
-      const cleaned = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
-      try { carrossel = JSON.parse(cleaned); }
-      catch {
-        const match = cleaned.match(/\{[\s\S]*\}/);
-        if (match) { try { carrossel = JSON.parse(match[0]); } catch { return NextResponse.json({ error: 'JSON invalido do Gemini' }, { status: 500 }); } }
-        else return NextResponse.json({ error: 'JSON invalido do Gemini' }, { status: 500 });
-      }
-    }
+    try { carrossel = parseGeminiJson(rawText); }
+    catch { return NextResponse.json({ error: 'JSON invalido do Gemini' }, { status: 500 }); }
 
     return NextResponse.json(carrossel);
   } catch (error) {
