@@ -40,9 +40,12 @@ export async function POST(req: NextRequest) {
     const toneHint  = modelo_ia ? (MODELO_TONE_HINTS[modelo_ia] ?? '') : '';
     const basePrompt = customPrompt || 'Você é um copywriter de elite especialista em carrosséis virais para Instagram.';
 
+    // Quando há customPrompt (nicho especializado), permitir textos mais ricos e títulos de capa completos
+    const isNichoEspecializado = !!customPrompt;
+
     const systemPrompt = `${basePrompt}
 ${toneHint ? `\nDIRETIVA DE TOM OBRIGATÓRIA: ${toneHint}\n` : ''}
-Você é um Diretor de Arte e Copywriter de elite. Escreva EXATAMENTE ${numSlides || 10} slides sobre o tema fornecido.
+Escreva EXATAMENTE ${numSlides || 10} slides sobre o tema fornecido.
 A regra para imagens é: ${regraImagens}
 
 ARQUITETURA LEGO — BLOCOS VISUAIS DISPONÍVEIS:
@@ -55,12 +58,12 @@ Escolha o layout mais impactante para cada slide entre os 5 blocos abaixo:
 
 Para cada slide defina obrigatoriamente:
 - "layout": o bloco visual mais adequado
-- "titulo": headline impactante (máx 8 palavras) — exibida em destaque no slide
+- "titulo": ${isNichoEspecializado ? 'headline do slide conforme as regras de estilo do nicho — para a capa pode ser uma frase em caixa alta completa' : 'headline impactante (máx 8 palavras) — exibida em destaque no slide'}
 - "palavra_destaque": UMA palavra do titulo que deve ser colorida com a cor da marca
 - "alinhamento": "esquerda", "centro" ou "direita"
 - "usar_imagem": true apenas para layouts "fundo_overlay_texto" e "split_horizontal"
 - "termo_pesquisa": em inglês com -stock -watermark, apenas se usar_imagem=true
-- "texto": corpo do slide (máx 2 frases curtas, sem negrito, sem asterisco)
+- "texto": ${isNichoEspecializado ? 'corpo do slide conforme as regras de narrativa do nicho — pode ter até 3 blocos curtos separados por \\n, sem negrito, sem asterisco' : 'corpo do slide (máx 2 frases curtas, sem negrito, sem asterisco)'}
 
 Retorne APENAS JSON válido, sem markdown:
 {
