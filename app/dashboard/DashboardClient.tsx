@@ -291,11 +291,15 @@ export default function DashboardClient({ user, isPro }: Props) {
     const newEntry = { id: crypto.randomUUID(), name: newPromptName.trim(), prompt: customPromptText.trim() };
     const updated  = [...savedPrompts, newEntry];
     try {
-      await supabase.from('users').update({ saved_prompts: updated } as never).eq('id', user.id);
+      const { error: sbError } = await supabase.from('users').update({ saved_prompts: updated } as never).eq('id', user.id);
+      if (sbError) throw sbError;
       setSavedPrompts(updated);
       setNewPromptName('');
       setShowSaveModal(false);
-    } catch { /* silently ignore if column doesn't exist yet */ }
+    } catch (err) {
+      console.error('Erro ao salvar modelo:', err);
+      alert('Não foi possível salvar o modelo. Verifique se a coluna saved_prompts existe na tabela users.\nSQL: ALTER TABLE users ADD COLUMN IF NOT EXISTS saved_prompts JSONB DEFAULT \'[]\';');
+    }
     finally { setSavingPrompt(false); }
   };
 
@@ -313,11 +317,14 @@ export default function DashboardClient({ user, isPro }: Props) {
       const url = getSlideImageUrl(carrossel.carrossel[i], carrossel);
       try {
         const res  = await fetch(url);
+        if (!res.ok) { await new Promise(r => setTimeout(r, 400)); continue; }
         const blob = await res.blob();
         const a    = document.createElement('a');
         a.href     = URL.createObjectURL(blob);
         a.download = `slide-${i + 1}.png`;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(a.href);
       } catch { /* skip on error */ }
       await new Promise(r => setTimeout(r, 400));
@@ -796,7 +803,7 @@ export default function DashboardClient({ user, isPro }: Props) {
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
                     <button onClick={() => setSlideAtual(p => Math.max(0, p - 1))} disabled={slideAtual === 0} className="p-2.5 bg-white/5 rounded-xl hover:bg-white/8 border border-white/8 disabled:opacity-20 transition-colors"><ChevronLeft className="w-5 h-5 text-white/50" /></button>
-                    <span className="font-mono text-xs text-white/30 uppercase tracking-widest">{slideAtual + 1} / {carrossel.numero_de_slides}</span>
+                    <span className="font-mono text-xs text-white/30 uppercase tracking-widest">{slideAtual + 1} / {carrossel.carrossel.length}</span>
                     <button onClick={() => setSlideAtual(p => Math.min(carrossel.carrossel.length - 1, p + 1))} disabled={slideAtual === carrossel.carrossel.length - 1} className="p-2.5 bg-white/5 rounded-xl hover:bg-white/8 border border-white/8 disabled:opacity-20 transition-colors"><ChevronRight className="w-5 h-5 text-white/50" /></button>
                   </div>
                   <div className="flex items-center gap-2">
@@ -812,7 +819,7 @@ export default function DashboardClient({ user, isPro }: Props) {
                   </div>
                 </div>
 
-                <div className="aspect-square w-full max-w-[640px] mx-auto rounded-[32px] relative overflow-hidden border border-white/8 shadow-2xl shadow-black/60" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                <div className={`${(activeTab === 'twitter' || activeTab === 'ilustrativo') ? 'aspect-[4/5]' : 'aspect-square'} w-full max-w-[560px] mx-auto rounded-[32px] relative overflow-hidden border border-white/8 shadow-2xl shadow-black/60`} style={{ background: 'rgba(255,255,255,0.02)' }}>
                   {imgLoading && (
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
                       <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin mb-3" />
@@ -829,7 +836,7 @@ export default function DashboardClient({ user, isPro }: Props) {
                   />
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-2 max-w-[640px] mx-auto">
+                <div className="flex gap-2 overflow-x-auto pb-2 max-w-[560px] mx-auto">
                   {carrossel.carrossel.map((_, i) => (
                     <button key={i} onClick={() => setSlideAtual(i)} className={`flex-shrink-0 w-9 h-9 rounded-lg border transition-all text-xs font-light ${i === slideAtual ? 'bg-white/15 border-white/25 text-white/80' : 'bg-white/[0.03] border-white/8 text-white/25 hover:border-white/15'}`}>{i + 1}</button>
                   ))}
@@ -987,14 +994,14 @@ export default function DashboardClient({ user, isPro }: Props) {
                     </div>
                   )}
 
-                  {/* Upload / remove imagem */}
-                  {(activeTab === 'ilustrativo' || activeTab === 'citacao') && (
+                  {/* Upload / remove imagem — apenas para Ilustrativo */}
+                  {activeTab === 'ilustrativo' && (
                     <div className="grid grid-cols-2 gap-2 pt-3 border-t border-white/5">
                       <label className="relative cursor-pointer">
                         <span className="w-full bg-white/5 hover:bg-white/8 border border-white/8 text-white/35 font-light py-2.5 rounded-xl text-xs flex justify-center items-center gap-2 transition-colors">
                           <Upload className="w-3.5 h-3.5" /> {fazendoUpload ? '...' : 'Upload'}
                         </span>
-                        <input type="file" onChange={handleUploadSlideBg} className="absolute inset-0 opacity-0 w-0 h-0" />
+                        <input type="file" accept="image/*" onChange={handleUploadSlideBg} className="absolute inset-0 opacity-0 w-0 h-0" />
                       </label>
                       <button onClick={() => updateSlideAtual({ usar_imagem: false, imageUrl: null })} className="bg-red-500/5 hover:bg-red-500/8 border border-red-500/10 text-red-400/35 font-light py-2.5 rounded-xl text-xs flex justify-center items-center gap-2 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" /> Tirar imagem
@@ -1002,9 +1009,25 @@ export default function DashboardClient({ user, isPro }: Props) {
                     </div>
                   )}
 
-                  <a href={getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel)} download={`slide-${slideAtual + 1}.png`} className="block text-center w-full bg-white/8 hover:bg-white/12 border border-white/10 text-white/55 font-light py-3.5 rounded-2xl transition-all text-sm flex items-center justify-center gap-2">
+                  <button
+                    onClick={async () => {
+                      const url = getSlideImageUrl(carrossel.carrossel[slideAtual], carrossel);
+                      try {
+                        const res = await fetch(url);
+                        if (!res.ok) throw new Error('Falha ao renderizar slide');
+                        const blob = await res.blob();
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = `slide-${slideAtual + 1}.png`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(a.href);
+                      } catch { alert('Erro ao baixar slide. Tente novamente.'); }
+                    }}
+                    className="block text-center w-full bg-white/8 hover:bg-white/12 border border-white/10 text-white/55 font-light py-3.5 rounded-2xl transition-all text-sm flex items-center justify-center gap-2">
                     <Download className="w-4 h-4" /> Baixar slide
-                  </a>
+                  </button>
                 </div>
               </div>
             </div>
