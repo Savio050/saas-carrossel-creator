@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { fetchSearchContext, parseGeminiJson } from '@/lib/gemini-utils';
+import { fetchSearchContext, parseGeminiJson, gerarLegenda } from '@/lib/gemini-utils';
 
 async function searchImage(query: string): Promise<string | null> {
   try {
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     // ── 2. System prompt ───────────────────────────────────────────────────
     const systemPrompt = `${basePrompt}
 ${toneHint ? `\nDIRETIVA DE TOM OBRIGATÓRIA: ${toneHint}\n` : ''}
-REGRA DE FACTUALIDADE OBRIGATÓRIA: O usuário fornecerá o tema e, quando disponível, um bloco de CONTEXTO REAL com dados verificados da web. Use esses dados como base factual primária. Não invente placares, datas, nomes, estatísticas ou fatos que não estejam no contexto ou que você não tenha certeza absoluta. Em caso de dúvida, omita o dado específico e foque na análise.
+ANCORAGEM FACTUAL: Quando houver CONTEXTO REAL disponível, use-o como referência para fatos verificáveis (placares, datas, nomes específicos). Para análises, insights e narrativa criativa, use toda sua criatividade — o contexto é referência, não limitação.
 
 Escreva EXATAMENTE ${numSlides || 10} slides sobre o tema fornecido.
 A regra para imagens é: ${regraImagens}
@@ -93,6 +93,9 @@ Retorne APENAS JSON válido, sem markdown:
       ? `Tema: ${tema}\n\n${contextoPesquisa}`
       : `Tema: ${tema}`;
 
+    // Run legenda generation in parallel with carousel
+    const legendaPromise = gerarLegenda(tema, contextoPesquisa, process.env.GEMINI_API_KEY || '');
+
     // ── 4. Geração via Gemini ──────────────────────────────────────────────
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -132,8 +135,10 @@ Retorne APENAS JSON válido, sem markdown:
       return { ...slide, imageUrl: null };
     }));
 
+    const legenda = await legendaPromise;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return NextResponse.json({ ...(carrossel as any), carrossel: slidesComImagem });
+    return NextResponse.json({ ...(carrossel as any), carrossel: slidesComImagem, legenda });
   } catch (error) {
     console.error('Erro inesperado:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });

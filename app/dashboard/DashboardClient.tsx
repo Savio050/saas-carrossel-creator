@@ -7,7 +7,7 @@ import {
   Twitter, Image as ImageIcon, User, LogOut, ChevronLeft, ChevronRight,
   Download, Upload, Menu, X, Settings2, Trash2, PlusCircle, MinusCircle,
   Save, Sparkles, Eye, EyeOff, Lock, CheckCircle2, AlertCircle, Loader2,
-  Check, Quote, ListChecks, Zap, Plus,
+  Check, Quote, ListChecks, Zap, Plus, Copy, Send, Clock,
 } from 'lucide-react';
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
@@ -41,6 +41,7 @@ interface Carrossel {
   carrossel: Slide[];
   estilo?: string;
   palavra_comentario?: string;
+  legenda?: string;
 }
 
 interface Props { user: { email: string; id: string }; isPro: boolean; }
@@ -180,6 +181,11 @@ export default function DashboardClient({ user, isPro }: Props) {
   const [newPromptName, setNewPromptName]       = useState('');
   const [savingPrompt, setSavingPrompt]         = useState(false);
   const [downloadingAll, setDownloadingAll]     = useState(false);
+  const [legendaEditada, setLegendaEditada]     = useState('');
+  const [publicandoIG, setPublicandoIG]         = useState(false);
+  const [igStatus, setIgStatus]                 = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [dataAgendamento, setDataAgendamento]   = useState('');
+  const [showSchedule, setShowSchedule]         = useState(false);
 
   const [configTwitter, setConfigTwitter] = useState({ temaVisor: 'light', imagens: 'aleatorio', numSlides: '10' });
 
@@ -234,6 +240,7 @@ export default function DashboardClient({ user, isPro }: Props) {
   }, [supabase, user.id]);
 
   useEffect(() => { if (carrossel) setImgLoading(true); }, [slideAtual, carrossel, config, configTwitter, configGlobal]);
+  useEffect(() => { if (carrossel?.legenda) setLegendaEditada(carrossel.legenda); }, [carrossel?.legenda]);
 
   const getSenhaStrength = (p: string) => {
     if (!p) return { score: 0, label: '', color: 'bg-white/10' };
@@ -330,6 +337,47 @@ export default function DashboardClient({ user, isPro }: Props) {
       await new Promise(r => setTimeout(r, 400));
     }
     setDownloadingAll(false);
+  };
+
+  const handlePublishIG = async (scheduled?: boolean) => {
+    if (!carrossel) return;
+    setPublicandoIG(true);
+    setIgStatus(null);
+    try {
+      // Collect rendered image URLs for all slides
+      const slideUrls = carrossel.carrossel.map(s => {
+        const url = getSlideImageUrl(s, carrossel);
+        // Build absolute URL for Instagram (needs https)
+        return `${window.location.origin}${url}`;
+      });
+
+      const body: Record<string, unknown> = {
+        imageUrls: slideUrls,
+        caption: legendaEditada,
+      };
+
+      if (scheduled && dataAgendamento) {
+        const ts = Math.floor(new Date(dataAgendamento).getTime() / 1000);
+        body.scheduleTime = ts;
+      }
+
+      const res = await fetch('/api/publish/instagram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao publicar');
+      setIgStatus({
+        type: 'success',
+        msg: scheduled ? 'Post agendado com sucesso!' : 'Publicado no Instagram!',
+      });
+      setShowSchedule(false);
+    } catch (err) {
+      setIgStatus({ type: 'error', msg: err instanceof Error ? err.message : 'Erro inesperado' });
+    } finally {
+      setPublicandoIG(false);
+    }
   };
 
   const salvarConfiguracoesGlobais = () => {
@@ -1029,6 +1077,94 @@ export default function DashboardClient({ user, isPro }: Props) {
                     <Download className="w-4 h-4" /> Baixar slide
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* LEGENDA + PUBLICAR NO INSTAGRAM */}
+          {carrossel && (
+            <div className="mt-6 rounded-3xl border border-white/8 overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(20px)' }}>
+              <div className="flex items-center gap-3 px-6 py-4 border-b border-white/5">
+                <div className="w-1.5 h-1.5 rounded-full bg-pink-400/60 animate-pulse" />
+                <h4 className="text-xs font-medium uppercase tracking-widest text-white/35">Legenda para Instagram</h4>
+                {carrossel.legenda && (
+                  <span className="ml-auto text-[10px] text-green-400/50 uppercase tracking-widest">Gerada com IA</span>
+                )}
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="relative">
+                  <textarea
+                    value={legendaEditada}
+                    onChange={e => setLegendaEditada(e.target.value)}
+                    placeholder="Escreva ou edite a legenda para o Instagram..."
+                    rows={6}
+                    className="w-full bg-white/[0.03] border border-white/8 rounded-2xl px-4 py-3 text-sm text-white/65 font-light focus:border-white/15 outline-none resize-none leading-relaxed"
+                  />
+                  <button
+                    onClick={() => { if (legendaEditada) { navigator.clipboard.writeText(legendaEditada); } }}
+                    title="Copiar legenda"
+                    className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/8 transition-colors">
+                    <Copy className="w-3.5 h-3.5 text-white/35" />
+                  </button>
+                </div>
+
+                {/* Status feedback */}
+                {igStatus && (
+                  <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-light ${igStatus.type === 'success' ? 'bg-green-500/10 border border-green-500/20 text-green-400/80' : 'bg-red-500/10 border border-red-500/20 text-red-400/80'}`}>
+                    {igStatus.type === 'success' ? <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />}
+                    {igStatus.msg}
+                  </div>
+                )}
+
+                {/* Schedule datetime picker */}
+                {showSchedule && (
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="datetime-local"
+                      value={dataAgendamento}
+                      onChange={e => setDataAgendamento(e.target.value)}
+                      min={new Date(Date.now() + 600_000).toISOString().slice(0, 16)}
+                      className="flex-1 bg-white/5 border border-white/8 rounded-xl px-4 py-2.5 text-sm text-white/60 outline-none focus:border-white/15"
+                    />
+                    <button
+                      onClick={() => handlePublishIG(true)}
+                      disabled={publicandoIG || !dataAgendamento}
+                      className="px-5 py-2.5 rounded-xl text-xs font-medium flex items-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ background: 'rgba(168,85,247,0.2)', border: '1px solid rgba(168,85,247,0.35)', color: 'rgba(216,180,254,0.9)' }}>
+                      {publicandoIG ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
+                      Confirmar Agendamento
+                    </button>
+                    <button onClick={() => setShowSchedule(false)} className="p-2.5 bg-white/5 hover:bg-white/8 border border-white/8 rounded-xl transition-colors">
+                      <X className="w-3.5 h-3.5 text-white/35" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                {!showSchedule && (
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      onClick={() => handlePublishIG(false)}
+                      disabled={publicandoIG}
+                      className="flex-1 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ background: 'rgba(236,72,153,0.18)', border: '1px solid rgba(236,72,153,0.3)', color: 'rgba(249,168,212,0.9)' }}>
+                      {publicandoIG ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                      Publicar agora
+                    </button>
+                    <button
+                      onClick={() => { setShowSchedule(true); setIgStatus(null); }}
+                      disabled={publicandoIG}
+                      className="flex-1 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.25)', color: 'rgba(196,181,253,0.8)' }}>
+                      <Clock className="w-3.5 h-3.5" />
+                      Agendar publicação
+                    </button>
+                  </div>
+                )}
+
+                <p className="text-[10px] text-white/20 leading-relaxed">
+                  Requer Instagram Business conectado em <span className="text-white/30">Minha Conta</span>. As imagens são enviadas diretamente pela Meta Graph API.
+                </p>
               </div>
             </div>
           )}

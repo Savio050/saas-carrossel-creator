@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { fetchSearchContext, parseGeminiJson } from '@/lib/gemini-utils';
+import { fetchSearchContext, parseGeminiJson, gerarLegenda } from '@/lib/gemini-utils';
 
 // ── Prompts de Copywriting por Modelo (Formato: Citação) ──────────────────
 const MODELO_PROMPTS: Record<string, string> = {
@@ -55,6 +55,9 @@ export async function POST(req: NextRequest) {
 
     // Busca de contexto real via Serper
     const contextoPesquisa = await fetchSearchContext(tema);
+
+    // Run legenda generation in parallel with carousel
+    const legendaPromise = gerarLegenda(tema, contextoPesquisa, process.env.GEMINI_API_KEY || '');
 
     const qtdSlides = numSlides || 10;
     const basePrompt = customPrompt || 'Você é um curador de frases e citações de elite para Instagram.';
@@ -117,7 +120,10 @@ Retorne APENAS JSON válido, sem markdown:
     try { carrossel = parseGeminiJson(rawText); }
     catch { return NextResponse.json({ error: 'JSON invalido do Gemini' }, { status: 500 }); }
 
-    return NextResponse.json(carrossel);
+    const legenda = await legendaPromise;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return NextResponse.json({ ...(carrossel as any), legenda });
   } catch (error) {
     console.error('Erro inesperado:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });

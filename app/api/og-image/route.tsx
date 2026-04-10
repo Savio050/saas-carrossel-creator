@@ -6,22 +6,64 @@ export const runtime = 'edge';
 const W = 1080;
 const H = 1350;
 
+async function loadGoogleFont(fontFamily: string, weight: number): Promise<ArrayBuffer | null> {
+  try {
+    const familyFormatted = fontFamily.replace(/ /g, '+');
+    const css = await fetch(
+      `https://fonts.googleapis.com/css2?family=${familyFormatted}:wght@${weight}`,
+      { headers: { 'User-Agent': 'Mozilla/5.0' } }
+    ).then(r => r.text());
+    const match = css.match(/url\(([^)]+)\)/);
+    if (match?.[1]) {
+      const url = match[1].replace(/['"]/g, '');
+      return await fetch(url).then(r => r.arrayBuffer());
+    }
+  } catch {}
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const texto = searchParams.get('texto') || '';
-    const nome = searchParams.get('nome') || 'Nome Padrão';
-    const arroba = searchParams.get('arroba') || '@arroba';
-    const avatar = searchParams.get('avatar') || '';
-    const isVerified = searchParams.get('verified') === 'true';
-    const imageUrl = searchParams.get('imageUrl');
-    const tema = searchParams.get('tema') || 'light'; // NOVO: Leitura do Tema
+    const texto        = searchParams.get('texto') || '';
+    const nome         = searchParams.get('nome') || 'Nome Padrão';
+    const arroba       = searchParams.get('arroba') || '@arroba';
+    const avatar       = searchParams.get('avatar') || '';
+    const isVerified   = searchParams.get('verified') === 'true';
+    const imageUrl     = searchParams.get('imageUrl');
+    const tema         = searchParams.get('tema') || 'light';
+
+    // New style params
+    const fonteParam   = searchParams.get('fonte') || '';
+    const boldParam    = searchParams.get('bold') === 'true';
+    const italicParam  = searchParams.get('italic') === 'true';
+    const tamanhoParam = parseInt(searchParams.get('tamanho') || '52', 10);
+    const posicao      = searchParams.get('posicao') || 'centro';
+    const alinhamento  = searchParams.get('alinhamento') || 'esquerda';
+    const corFundo     = searchParams.get('corFundo') || '';
 
     // Configuração de Cores Dinâmicas
-    const bgCor = tema === 'dark' ? '#000000' : '#FFFFFF';
-    const textoCor = tema === 'dark' ? '#E7E9EA' : '#0F1419';
+    const bgCorBase   = tema === 'dark' ? '#000000' : '#FFFFFF';
+    const bgCor       = corFundo || bgCorBase;
+    const textoCor    = tema === 'dark' ? '#E7E9EA' : '#0F1419';
     const subtextoCor = tema === 'dark' ? '#71767B' : '#536471';
-    const bordaCor = tema === 'dark' ? '#2F3336' : '#EFF3F4';
+    const bordaCor    = tema === 'dark' ? '#2F3336' : '#EFF3F4';
+
+    // Font loading
+    const shouldLoadFont = fonteParam && fonteParam !== 'sans-serif';
+    const fontWeight     = boldParam ? 700 : 400;
+    const fontBuffer     = shouldLoadFont ? await loadGoogleFont(fonteParam, fontWeight) : null;
+    const fontFamily     = fontBuffer ? `"${fonteParam}", sans-serif` : 'sans-serif';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fontOptions    = fontBuffer ? { fonts: [{ name: fonteParam, data: fontBuffer, style: italicParam ? 'italic' as any : 'normal' as any }] } : {};
+
+    // Text alignment
+    const textAlign = alinhamento === 'centro' ? 'center' : alinhamento === 'direita' ? 'right' : 'left';
+
+    // Vertical position
+    let justifyContent = 'center';
+    if (posicao === 'topo')   justifyContent = 'flex-start';
+    if (posicao === 'rodape') justifyContent = 'flex-end';
 
     let imageData: string | null = null;
     if (imageUrl && imageUrl !== 'null' && imageUrl !== 'undefined') {
@@ -36,9 +78,12 @@ export async function GET(req: NextRequest) {
       } catch { imageData = null; }
     }
 
+    // When no image, default position is center; with image default is flex-start
+    const contentJustify = imageData ? justifyContent : (posicao === 'centro' ? 'center' : justifyContent);
+
     return new ImageResponse(
       (
-        <div style={{ width: W, height: H, display: 'flex', flexDirection: 'column', backgroundColor: bgCor, padding: '80px', fontFamily: 'sans-serif' }}>
+        <div style={{ width: W, height: H, display: 'flex', flexDirection: 'column', backgroundColor: bgCor, padding: '80px', fontFamily }}>
 
           {/* HEADER DO TWITTER */}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '48px' }}>
@@ -56,9 +101,19 @@ export async function GET(req: NextRequest) {
             </div>
           </div>
 
-          {/* ÁREA DE CONTEÚDO: centraliza texto se não há imagem */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: imageData ? 'flex-start' : 'center' }}>
-            <div style={{ fontSize: 52, color: textoCor, lineHeight: 1.45, whiteSpace: 'pre-wrap', textAlign: 'left', marginBottom: imageData ? '50px' : '0' }}>
+          {/* ÁREA DE CONTEÚDO */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: contentJustify }}>
+            <div style={{
+              fontSize: tamanhoParam,
+              fontWeight: boldParam ? 700 : 400,
+              fontStyle: italicParam ? 'italic' : 'normal',
+              color: textoCor,
+              lineHeight: 1.45,
+              whiteSpace: 'pre-wrap',
+              textAlign,
+              marginBottom: imageData ? '50px' : '0',
+              fontFamily,
+            }}>
               {texto}
             </div>
 
@@ -70,7 +125,7 @@ export async function GET(req: NextRequest) {
             )}
           </div>
         </div>
-      ), { width: W, height: H }
+      ), { width: W, height: H, ...fontOptions }
     );
   } catch (error) {
     return new Response('Erro', { status: 500 });

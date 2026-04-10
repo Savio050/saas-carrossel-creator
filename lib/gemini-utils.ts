@@ -146,3 +146,53 @@ export function parseGeminiJson(rawText: string): unknown {
 
   throw new Error('JSON invalido do Gemini');
 }
+
+/**
+ * Gera uma legenda profissional para Instagram usando Gemini.
+ * Chamada em paralelo com a geração do carrossel para não atrasar a resposta.
+ * Retorna string vazia se falhar.
+ */
+export async function gerarLegenda(
+  tema: string,
+  contextoPesquisa: string,
+  geminiApiKey: string
+): Promise<string> {
+  try {
+    const ctx = contextoPesquisa
+      ? `\nContexto sobre o tema:\n${contextoPesquisa}\n`
+      : '';
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [{
+              text: `Você é um especialista em copywriting para Instagram com profundo conhecimento de algoritmos de alcance e engajamento.
+
+Gere UMA legenda completa para um carrossel de Instagram. A legenda deve:
+
+1. HOOK (1ª linha): Frase curta, intrigante, que para o scroll. Sem emoji na 1ª linha.
+2. CORPO (3-4 parágrafos curtos): Desenvolva o tema com linguagem humana e direta. Alterne linhas curtas e médias. Use emojis pontualmente (máx 4 no total).
+3. CTA (última linha antes das hashtags): Convide a salvar, comentar ou compartilhar.
+4. HASHTAGS: 5 a 8 hashtags relevantes ao nicho, em português e inglês.
+
+Tom: envolvente, autêntico, nunca corporativo.
+RETORNE APENAS A LEGENDA, sem explicações nem prefácios.`
+            }]
+          },
+          contents: [{ parts: [{ text: `Tema: ${tema}${ctx}` }] }],
+          generationConfig: { temperature: 0.85, maxOutputTokens: 600 },
+        }),
+        signal: AbortSignal.timeout(15000),
+      }
+    );
+    if (!res.ok) return '';
+    const data = await res.json();
+    return (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
+  } catch {
+    return '';
+  }
+}
