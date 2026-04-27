@@ -218,18 +218,26 @@ export default function DashboardClient({ user, isPro }: Props) {
   const [senhaErro, setSenhaErro]                 = useState('');
   const [senhaSucesso, setSenhaSucesso]           = useState(false);
 
+  const [igAccessToken, setIgAccessToken]         = useState('');
+  const [igUserId, setIgUserId]                   = useState('');
+  const [salvandoIG, setSalvandoIG]               = useState(false);
+  const [igSaveStatus, setIgSaveStatus]           = useState<'idle' | 'success' | 'error'>('idle');
+  const [showIgToken, setShowIgToken]             = useState(false);
+
   const router   = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from('users').select('nome, arroba, avatar_url, is_verified, saved_prompts').eq('id', user.id).single();
+      const { data } = await supabase.from('users').select('nome, arroba, avatar_url, is_verified, saved_prompts, instagram_access_token, instagram_user_id').eq('id', user.id).single();
       if (data) {
         setNome(data.nome || '');
         setArroba(data.arroba || '');
         setAvatarUrl(data.avatar_url || '');
         setIsVerified(data.is_verified || false);
         if (Array.isArray(data.saved_prompts)) setSavedPrompts(data.saved_prompts);
+        setIgAccessToken(data.instagram_access_token || '');
+        setIgUserId(data.instagram_user_id || '');
       }
       const sc = localStorage.getItem('configIlustrativo'); if (sc) setConfig(JSON.parse(sc));
       const st = localStorage.getItem('configTwitter');     if (st) setConfigTwitter(JSON.parse(st));
@@ -341,13 +349,17 @@ export default function DashboardClient({ user, isPro }: Props) {
 
   const handlePublishIG = async (scheduled?: boolean) => {
     if (!carrossel) return;
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      setIgStatus({ type: 'error', msg: 'Publicação no Instagram requer a versão em produção (Vercel). Use o site hospedado.' });
+      return;
+    }
     setPublicandoIG(true);
     setIgStatus(null);
     try {
       // Collect rendered image URLs for all slides
       const slideUrls = carrossel.carrossel.map(s => {
         const url = getSlideImageUrl(s, carrossel);
-        // Build absolute URL for Instagram (needs https)
+        // Build absolute URL for Instagram (needs public HTTPS)
         return `${window.location.origin}${url}`;
       });
 
@@ -378,6 +390,18 @@ export default function DashboardClient({ user, isPro }: Props) {
     } finally {
       setPublicandoIG(false);
     }
+  };
+
+  const handleSalvarIG = async () => {
+    setSalvandoIG(true);
+    setIgSaveStatus('idle');
+    const { error } = await supabase
+      .from('users')
+      .update({ instagram_access_token: igAccessToken.trim(), instagram_user_id: igUserId.trim() })
+      .eq('id', user.id);
+    setSalvandoIG(false);
+    setIgSaveStatus(error ? 'error' : 'success');
+    setTimeout(() => setIgSaveStatus('idle'), 3000);
   };
 
   const salvarConfiguracoesGlobais = () => {
@@ -632,6 +656,76 @@ export default function DashboardClient({ user, isPro }: Props) {
                     {alterandoSenha ? <><Loader2 className="w-4 h-4 animate-spin" />Salvando...</> : 'Alterar senha'}
                   </button>
                 </form>
+              </div>
+
+              {/* Instagram Business */}
+              <div className="border-t border-white/5 pt-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)' }}>
+                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-light text-white/60">Instagram Business</h4>
+                    <p className="text-xs text-white/25 font-light">Conecte sua conta para publicar carrosséis direto do app</p>
+                  </div>
+                  {igAccessToken && igUserId && (
+                    <span className="ml-auto text-[10px] font-medium px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400/80">Conectado</span>
+                  )}
+                </div>
+
+                <div className="space-y-4 max-w-sm">
+                  {/* Instagram User ID */}
+                  <div>
+                    <label className="block text-[10px] font-medium text-white/25 uppercase tracking-widest mb-1.5">Instagram User ID</label>
+                    <input
+                      type="text"
+                      value={igUserId}
+                      onChange={e => setIgUserId(e.target.value)}
+                      placeholder="Ex: 17841400000000000"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white/70 placeholder-white/20 focus:border-white/20 outline-none text-sm font-light"
+                    />
+                  </div>
+
+                  {/* Access Token */}
+                  <div>
+                    <label className="block text-[10px] font-medium text-white/25 uppercase tracking-widest mb-1.5">Access Token (Instagram Graph API)</label>
+                    <div className="relative">
+                      <input
+                        type={showIgToken ? 'text' : 'password'}
+                        value={igAccessToken}
+                        onChange={e => setIgAccessToken(e.target.value)}
+                        placeholder="EAAxxxxxxxxxxxxxxxx..."
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pr-12 text-white/70 placeholder-white/20 focus:border-white/20 outline-none text-sm font-light"
+                      />
+                      <button type="button" onClick={() => setShowIgToken(x => !x)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/50 p-1" tabIndex={-1}>
+                        {showIgToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Feedback */}
+                  {igSaveStatus === 'success' && (
+                    <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-400/80 text-xs px-3 py-2.5 rounded-xl">
+                      <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" /> Credenciais salvas com sucesso!
+                    </div>
+                  )}
+                  {igSaveStatus === 'error' && (
+                    <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400/80 text-xs px-3 py-2.5 rounded-xl">
+                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> Erro ao salvar. Tente novamente.
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleSalvarIG}
+                    disabled={salvandoIG || !igUserId.trim() || !igAccessToken.trim()}
+                    className="bg-white/8 hover:bg-white/12 disabled:opacity-30 disabled:cursor-not-allowed border border-white/10 text-white/70 font-light px-6 py-2.5 rounded-xl transition-all flex items-center gap-2 text-sm">
+                    {salvandoIG ? <><Loader2 className="w-4 h-4 animate-spin" />Salvando...</> : 'Salvar credenciais'}
+                  </button>
+
+                  <p className="text-[10px] text-white/20 leading-relaxed pt-1">
+                    Gere um token de longa duração pelo <span className="text-white/35">Meta for Developers</span> com as permissões <code className="text-white/30">instagram_basic</code>, <code className="text-white/30">instagram_content_publish</code> e <code className="text-white/30">pages_read_engagement</code>. O token é armazenado de forma segura no banco de dados.
+                  </p>
+                </div>
               </div>
             </div>
           )}
