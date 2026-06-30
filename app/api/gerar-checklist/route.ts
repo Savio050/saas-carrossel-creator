@@ -127,6 +127,6 @@ Retorne APENAS JSON válido, sem markdown:
     return NextResponse.json({ ...(carrossel as any), legenda });
   } catch (error) {
     console.error('Erro inesperado:', error);
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro interno do servidor' }, { status: 500 });
   }
 }

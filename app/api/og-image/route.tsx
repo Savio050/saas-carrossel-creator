@@ -128,6 +128,7 @@ export async function GET(req: NextRequest) {
       ), { width: W, height: H, ...fontOptions }
     );
   } catch (error) {
-    return new Response('Erro', { status: 500 });
+    console.error('og-image error:', error);
+    return new Response('Erro ao gerar imagem', { status: 500 });
   }
 }

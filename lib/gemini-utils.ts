@@ -32,7 +32,8 @@ interface SerperResponse {
 export async function fetchSearchContext(tema: string): Promise<string> {
   // Chave via env (preferencial) ou fallback hardcoded para uso imediato.
   // Em produção, defina SERPER_API_KEY no .env.local
-  const apiKey = process.env.SERPER_API_KEY || 'a105057f3fd327948f1aa3784f256646f01cf3fd';
+  const apiKey = process.env.SERPER_API_KEY;
+  if (!apiKey) return '';
 
   try {
     const res = await fetch('https://google.serper.dev/search', {

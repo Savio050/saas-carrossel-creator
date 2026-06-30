@@ -43,5 +43,23 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (event.type === 'customer.subscription.deleted' || event.type === 'customer.subscription.updated') {
+    const subscription = event.data.object as Stripe.Subscription;
+    const isActive = subscription.status === 'active' || subscription.status === 'trialing';
+
+    if (!isActive) {
+      const customerId = subscription.customer as string;
+      const { error } = await supabaseAdmin
+        .from('users')
+        .update({ is_pro: false })
+        .eq('stripe_customer_id', customerId);
+
+      if (error) {
+        console.error('Erro ao revogar is_pro:', error);
+        return NextResponse.json({ error: 'DB error' }, { status: 500 });
+      }
+    }
+  }
+
   return NextResponse.json({ received: true });
 }

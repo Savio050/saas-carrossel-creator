@@ -54,7 +54,7 @@ interface ConfigGlobal {
 }
 
 // ── Constantes ─────────────────────────────────────────────────────────────
-const FONTES_DISPONEIS = ['Montserrat', 'Open Sans', 'Nunito Sans', 'League Spartan', 'Kalam', 'Poppins', 'Anton', 'Bebas Neue'];
+const FONTES_DISPONÍVEIS = ['Montserrat', 'Open Sans', 'Nunito Sans', 'League Spartan', 'Kalam', 'Poppins', 'Anton', 'Bebas Neue'];
 
 const MODELOS_IA: { id: ModeloIA; nome: string; ref: string; descricao: string; img: string; corDefault: string }[] = [
   { id: 'aesthetic_minimalist', nome: 'Aesthetic Minimalist', ref: '@hyeser',               descricao: 'Frases de impacto. Espaço vazio como linguagem.',    img: 'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?w=600&q=80', corDefault: '#18181B' },
@@ -920,7 +920,7 @@ export default function DashboardClient({ user, isPro }: Props) {
                                 <div key={k} className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl space-y-2">
                                   <h5 className="font-medium text-white/30 text-xs uppercase">{l}</h5>
                                   <select value={config[k as keyof typeof config].fonte} onChange={e => setConfig({ ...config, [k]: { ...config[k as keyof typeof config], fonte: e.target.value }})} className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-2 text-xs text-white/45 outline-none">
-                                    {FONTES_DISPONEIS.map(f => <option key={f} value={f}>{f}</option>)}
+                                    {FONTES_DISPONÍVEIS.map(f => <option key={f} value={f}>{f}</option>)}
                                   </select>
                                 </div>
                               ))}
@@ -1110,7 +1110,7 @@ export default function DashboardClient({ user, isPro }: Props) {
                         </div>
                         <select value={carrossel.carrossel[slideAtual].fonte_slide || ''} onChange={e => updateSlideAtual({ fonte_slide: e.target.value || undefined })} className="w-full bg-white/5 border border-white/8 rounded-xl px-3 py-2 text-sm text-white/45 outline-none font-light">
                           <option value="">Usar global</option>
-                          {FONTES_DISPONEIS.map(f => <option key={f} value={f}>{f}</option>)}
+                          {FONTES_DISPONÍVEIS.map(f => <option key={f} value={f}>{f}</option>)}
                         </select>
                       </div>
 
