@@ -95,7 +95,10 @@ export async function GET(req: NextRequest) {
 
           {/* HEADER DO TWITTER */}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '48px' }}>
-            <img src={avatar} style={{ width: 120, height: 120, borderRadius: '50%', marginRight: '30px', objectFit: 'cover' }} />
+            {avatar
+              ? <img src={avatar} style={{ width: 120, height: 120, borderRadius: '50%', marginRight: '30px', objectFit: 'cover' }} />
+              : <div style={{ width: 120, height: 120, borderRadius: '50%', marginRight: '30px', backgroundColor: bordaCor, display: 'flex' }} />
+            }
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <span style={{ fontSize: 46, fontWeight: 700, color: textoCor, marginRight: '10px' }}>{nome}</span>

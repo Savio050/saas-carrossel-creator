@@ -146,7 +146,7 @@ export async function GET(req: NextRequest) {
 
     const fontFamily  = fontBuffer ? `"${fonteEscolhida}", sans-serif` : 'sans-serif';
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const fontOptions = fontBuffer ? { fonts: [{ name: fonteEscolhida, data: fontBuffer, style: 'normal' as any }] } : {};
+    const fontOptions = fontBuffer ? { fonts: [{ name: fonteEscolhida, data: fontBuffer, style: 'normal' as any, weight: preset.displayWeight as any }] } : {};
     const overlayAlpha = fade ? preset.overlayBase : 0.0;
 
     // ── Marca d'água ───────────────────────────────────────────────────────
@@ -160,10 +160,14 @@ export async function GET(req: NextRequest) {
     ) : null;
 
     // ── renderTitulo: pinta a palavra_destaque com accentColor ─────────────
-    const renderTitulo = (tituloText: string, colorText: string, justifyContent = 'flex-start') => {
-      const words = tituloText.split(' ');
+    // Aplica os estilos de fonte (extra) DIRETO no div flex, sem wrapper extra.
+    // Wrapper sem display:flex contendo um div-flex faz o Satori (next/og) lançar
+    // "Expected <div> to have explicit display: flex" e devolver PNG vazio.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const renderTitulo = (tituloText: string, colorText: string, extra: any = {}, justifyContent = 'flex-start') => {
+      const words = (tituloText || '').split(' ');
       return (
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent, ...extra }}>
           {words.map((word, i) => (
             <span
               key={i}
@@ -198,9 +202,7 @@ export async function GET(req: NextRequest) {
             <div style={{ display: 'flex', backgroundColor: accentColor, padding: '10px 28px', borderRadius: 100 }}>
               <span style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 700, letterSpacing: '0.15em', display: 'flex' }}>01</span>
             </div>
-            <div style={{ fontSize: baseFontSize + 20, fontWeight: preset.displayWeight, lineHeight: 1.05, letterSpacing: '-0.035em', width: '100%' }}>
-              {renderTitulo(titulo, textColor, 'center')}
-            </div>
+            {renderTitulo(titulo, textColor, { fontSize: baseFontSize + 20, fontWeight: preset.displayWeight, lineHeight: 1.05, letterSpacing: '-0.035em', width: '100%' }, 'center')}
             {texto && texto !== titulo && (
               <div style={{ fontSize: baseFontSize - 10, fontWeight: preset.bodyWeight, color: textColor, opacity: 0.6, lineHeight: 1.55, display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
                 {texto}
@@ -236,9 +238,7 @@ export async function GET(req: NextRequest) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 36, height: 4, backgroundColor: accentColor, borderRadius: 2, display: 'flex' }} />
             </div>
-            <div style={{ fontSize: baseFontSize + 12, fontWeight: preset.displayWeight, lineHeight: 1.1, letterSpacing: '-0.03em' }}>
-              {renderTitulo(titulo, textColor)}
-            </div>
+            {renderTitulo(titulo, textColor, { fontSize: baseFontSize + 12, fontWeight: preset.displayWeight, lineHeight: 1.1, letterSpacing: '-0.03em' })}
             {texto && texto !== titulo && (
               <div style={{ fontSize: baseFontSize - 8, fontWeight: preset.bodyWeight, color: textColor, opacity: 0.7, lineHeight: 1.6, display: 'flex', flexWrap: 'wrap' }}>
                 {texto}
@@ -270,9 +270,7 @@ export async function GET(req: NextRequest) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ width: 48, height: 4, backgroundColor: accentColor, borderRadius: 2, display: 'flex' }} />
             </div>
-            <div style={{ fontSize: baseFontSize + 4, fontWeight: preset.displayWeight, lineHeight: 1.15, letterSpacing: '-0.025em' }}>
-              {renderTitulo(titulo, textColor)}
-            </div>
+            {renderTitulo(titulo, textColor, { fontSize: baseFontSize + 4, fontWeight: preset.displayWeight, lineHeight: 1.15, letterSpacing: '-0.025em' })}
             {texto && texto !== titulo && (
               <div style={{ fontSize: baseFontSize - 8, fontWeight: preset.bodyWeight, color: textColor, opacity: 0.7, lineHeight: 1.55, display: 'flex', flexWrap: 'wrap' }}>
                 {texto}
@@ -299,9 +297,7 @@ export async function GET(req: NextRequest) {
           <div style={{ position: 'absolute', top: 60, right: 60, width: 220, height: 220, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.08)', display: 'flex' }} />
           <div style={{ position: 'absolute', bottom: 60, left: 60, width: 320, height: 320, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.05)', display: 'flex' }} />
           <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 48, padding: '0 100px' }}>
-            <div style={{ fontSize: baseFontSize + 4, fontWeight: preset.displayWeight, lineHeight: 1.2, width: '100%' }}>
-              {renderTitulo(titulo, '#FFFFFF', 'center')}
-            </div>
+            {renderTitulo(titulo, '#FFFFFF', { fontSize: baseFontSize + 4, fontWeight: preset.displayWeight, lineHeight: 1.2, width: '100%' }, 'center')}
             {texto && texto !== titulo && (
               <div style={{ fontSize: baseFontSize - 10, fontWeight: 300, color: 'rgba(255,255,255,0.75)', lineHeight: 1.4, display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
                 {texto}
@@ -352,9 +348,7 @@ export async function GET(req: NextRequest) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 40, height: 4, backgroundColor: accentColor, borderRadius: 2, display: 'flex' }} />
           </div>
-          <div style={{ fontSize: baseFontSize + 6, fontWeight: preset.displayWeight, lineHeight: 1.15, letterSpacing: '-0.025em' }}>
-            {renderTitulo(titulo, txtColor)}
-          </div>
+          {renderTitulo(titulo, txtColor, { fontSize: baseFontSize + 6, fontWeight: preset.displayWeight, lineHeight: 1.15, letterSpacing: '-0.025em' })}
           {texto && texto !== titulo && (
             <div style={{ fontSize: baseFontSize - 8, fontWeight: preset.bodyWeight, color: txtColor, opacity: hasImage ? 0.85 : 0.7, lineHeight: 1.55, display: 'flex', flexWrap: 'wrap', marginTop: 8 }}>
               {texto}
