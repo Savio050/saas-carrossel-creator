@@ -80,11 +80,29 @@ async function loadGoogleFont(fontFamily: string, weight = 700): Promise<ArrayBu
   return null;
 }
 
-// Valida a URL da imagem recebida via query param.
-// Retorna null para os valores sentinela 'null' e 'undefined' que o dashboard envia.
-function resolveImageUrl(raw: string | null): string | null {
-  if (!raw || raw === 'null' || raw === 'undefined') return null;
-  return raw;
+// Faz o download da imagem e converte para base64 data URI.
+// Usa btoa() (Web API padrão) em vez de Buffer (Node.js only) para funcionar no Edge.
+// Retorna null em qualquer falha — o slide renderiza sem imagem, sem lançar erro.
+async function fetchImageAsBase64(url: string | null): Promise<string | null> {
+  if (!url || url === 'null' || url === 'undefined') return null;
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const buffer = await res.arrayBuffer();
+    const ct = res.headers.get('content-type') || 'image/jpeg';
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunk = 8192;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...Array.from(bytes.subarray(i, i + chunk)));
+    }
+    return `data:${ct};base64,${btoa(binary)}`;
+  } catch {
+    return null;
+  }
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────
@@ -93,7 +111,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
 
     const texto           = searchParams.get('texto')      || 'Texto não encontrado';
-    const imageUrl        = resolveImageUrl(searchParams.get('imageUrl'));
+    const rawImageUrl     = searchParams.get('imageUrl');
     const layout          = searchParams.get('layout')     || searchParams.get('tipo') || 'fundo_overlay_texto';
     const nomeMarca       = searchParams.get('marca')      || 'SUA MARCA';
     const palavraCom      = searchParams.get('comentario') || 'MED';
@@ -119,9 +137,12 @@ export async function GET(req: NextRequest) {
     if (tamanho === 'grande')  baseFontSize = 66;
     if (tamanho === 'gigante') baseFontSize = 76;
 
-    // Carrega apenas a fonte — a imagem é passada diretamente ao <img src>,
-    // o @vercel/og (Satori) busca ela internamente sem precisar de base64 manual.
-    const fontBuffer = await loadGoogleFont(fonteEscolhida, preset.displayWeight);
+    // Carrega fonte e imagem em paralelo. Se a imagem falhar, imageUrl fica null
+    // e o slide renderiza com fundo sólido — sem 500.
+    const [fontBuffer, imageUrl] = await Promise.all([
+      loadGoogleFont(fonteEscolhida, preset.displayWeight),
+      fetchImageAsBase64(rawImageUrl),
+    ]);
 
     const fontFamily  = fontBuffer ? `"${fonteEscolhida}", sans-serif` : 'sans-serif';
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

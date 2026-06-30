@@ -71,12 +71,17 @@ export async function GET(req: NextRequest) {
     let imageData: string | null = null;
     if (imageUrl && imageUrl !== 'null' && imageUrl !== 'undefined') {
       try {
-        const res = await fetch(imageUrl, { signal: AbortSignal.timeout(4000) });
+        const res = await fetch(imageUrl, { signal: AbortSignal.timeout(6000) });
         if (res.ok) {
           const buffer = await res.arrayBuffer();
-          const base64 = Buffer.from(buffer).toString('base64');
-          const contentType = res.headers.get('content-type') || 'image/jpeg';
-          imageData = `data:${contentType};base64,${base64}`;
+          const ct = res.headers.get('content-type') || 'image/jpeg';
+          const bytes = new Uint8Array(buffer);
+          let binary = '';
+          const chunk = 8192;
+          for (let i = 0; i < bytes.length; i += chunk) {
+            binary += String.fromCharCode(...Array.from(bytes.subarray(i, i + chunk)));
+          }
+          imageData = `data:${ct};base64,${btoa(binary)}`;
         }
       } catch { imageData = null; }
     }
