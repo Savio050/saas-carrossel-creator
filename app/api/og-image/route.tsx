@@ -10,12 +10,15 @@ async function loadGoogleFont(fontFamily: string, weight: number): Promise<Array
   try {
     const familyFormatted = fontFamily.replace(/ /g, '+');
     const css = await fetch(
-      `https://fonts.googleapis.com/css2?family=${familyFormatted}:wght@${weight}`,
+      `https://fonts.googleapis.com/css2?family=${familyFormatted}:wght@${weight}&display=swap`,
       { headers: { 'User-Agent': 'Mozilla/5.0' } }
     ).then(r => r.text());
-    const match = css.match(/url\(([^)]+)\)/);
-    if (match?.[1]) {
-      const url = match[1].replace(/['"]/g, '');
+    // Google Fonts lista subsets em ordem crescente (cyrillic-ext primeiro, latin por último).
+    // Pegamos o último url() para garantir o subset Latin.
+    const matches = [...css.matchAll(/url\(([^)]+)\)/g)];
+    const lastUrl = matches[matches.length - 1]?.[1];
+    if (lastUrl) {
+      const url = lastUrl.replace(/['"]/g, '');
       return await fetch(url).then(r => r.arrayBuffer());
     }
   } catch {}

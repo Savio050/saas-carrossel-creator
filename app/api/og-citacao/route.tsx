@@ -41,11 +41,12 @@ const MODELO_PRESETS: Record<string, {
 async function loadFont(weight: number): Promise<ArrayBuffer | null> {
   try {
     const css = await fetch(
-      `https://fonts.googleapis.com/css2?family=Inter:wght@${weight}`,
+      `https://fonts.googleapis.com/css2?family=Inter:wght@${weight}&display=swap`,
       { headers: { 'User-Agent': 'Mozilla/5.0' } }
     ).then(r => r.text());
-    const match = css.match(/url\(([^)]+)\)/);
-    if (match?.[1]) return fetch(match[1].replace(/['"]/g, '')).then(r => r.arrayBuffer());
+    const matches = [...css.matchAll(/url\(([^)]+)\)/g)];
+    const lastUrl = matches[matches.length - 1]?.[1];
+    if (lastUrl) return fetch(lastUrl.replace(/['"]/g, '')).then(r => r.arrayBuffer());
   } catch {}
   return null;
 }

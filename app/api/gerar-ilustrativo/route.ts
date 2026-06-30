@@ -44,7 +44,7 @@ Aplique RIGOROSAMENTE as 5 regras:
 async function searchImage(termo: string): Promise<string | null> {
   try {
     const res = await fetch(
-      `https://api.pexels.com/v1/search?query=${encodeURIComponent(termo)}&per_page=1&orientation=landscape`,
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(termo)}&per_page=3&orientation=portrait`,
       { headers: { Authorization: process.env.PEXELS_API_KEY || '' }, signal: AbortSignal.timeout(5000) }
     );
     if (!res.ok) return null;
